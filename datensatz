@@ -55,3 +55,8 @@ objectclass: inetOrgPerson
 cn: testBD
 sn: meinNameIstTestBD
 o: TSI
+
+dn: cn=testE,o=TSI,dc=adm
+cn: testE 
+sn: meinNameIstTestE
+o: TSI
