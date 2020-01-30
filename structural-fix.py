@@ -12,7 +12,10 @@ def sharedClasses(entry, classes):
     return compareClasses(entry,classes).count(True)
 
 def compareClasses(entry, classes):
-    return [(x in entry["objectclass"]) for x in classes]
+    '''
+    Prüft für alle Elemente einer Liste von Klassen ob ein entry ein Objekt dieser Klasse ist (case-insensitive)
+    '''
+    return [(x.casefold() in [o.casefold() for o in entry["objectclass"]]) for x in classes]
 
 def splitClasses(entry, classesToInspect):
     """
@@ -61,7 +64,7 @@ class StructuralLDIFParser(LDIFParser):
     def handle(self, dn, entry):
 
         #Konvertiert alle Objektattributseinträge zu Strings damit Stringoperationen normal durchgeführt werden können
-        #print(entry)
+        print(dn, entry)
         modifyEntryValues(lambda x: x.decode(), entry)
 
         if (sharedClasses(entry, ALL_STRUCTURALS) == 0):
@@ -70,7 +73,7 @@ class StructuralLDIFParser(LDIFParser):
             reduceMultipleStructural(entry)
 
         #Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
-        print(entry)
+        print(dn, entry, "\n")
         modifyEntryValues(lambda x: x.encode("utf-8"), entry)
 
         self.writer.unparse(dn, entry)
