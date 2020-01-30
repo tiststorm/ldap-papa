@@ -78,7 +78,7 @@ class StructuralLDIFParser(LDIFParser):
 
         self.writer.unparse(dn, entry)
 
-with open('datensatz','r') as inFile, open('bereinigter_datensatz_vererbung','w') as outFile:
+with open('datensatz','r') as inFile, open('bereinigter_datensatz','w') as outFile:
     parser = StructuralLDIFParser(inFile, outFile)
     parser.parse()
 

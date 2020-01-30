@@ -51,7 +51,7 @@ o: TSI
 
 dn: cn=testBC,o=TSI,dc=adm
 objectclass: TSIdevice
-objectclass: inetOrgperson
+objectclass: inetOrgPerson
 cn: testBD
 sn: meinNameIstTestBD
 o: TSI
