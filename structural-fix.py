@@ -46,7 +46,6 @@ def modifyEntryValues(func, entry):
     for k,v in entry.items():
         entry[k] = list(map(func,v))
 
-
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
         LDIFParser.__init__(self,inputFile)
@@ -63,16 +62,17 @@ class StructuralLDIFParser(LDIFParser):
         self.count+=1
         try:
             #Konvertiert alle Objektattributseinträge zu Strings damit Stringoperationen normal durchgeführt werden können
-            #print(dn, entry)
             modifyEntryValues(lambda x: x.decode(), entry)
-           # print(sharedClasses(entry,ALL_STRUCTURALS))
+
             if (sharedClasses(entry, ALL_STRUCTURALS) == 0):
                 self.addMissingStructural(dn, entry)
             if (sharedClasses(entry, ALL_STRUCTURALS) == 2):
                 self.reduceMultipleStructural(dn, entry)
-        #Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
-            #print(dn, entry, "\n")
+
+            #Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
             modifyEntryValues(lambda x: x.encode("utf-8"), entry)
+
+
 
             self.writer.unparse(dn, entry)
         except UnicodeDecodeError:
@@ -90,10 +90,10 @@ class StructuralLDIFParser(LDIFParser):
         try:
             entry["objectClass"].append(DEFAULT_STRUCTURAL)
             self.missingStructurals += 1
-            self.logger.write("[NEWOC] Es wurde ein Structural bei dn={} ergänzt\n".format(dn))
+            self.logger.write("[NEWOC] Es wurde ein Default-Structural bei dn={} ergänzt\n".format(dn))
         except KeyError:
             entry["objectClass"] = [DEFAULT_STRUCTURAL]
-            self.logger.write("[NOOC] Es war keine Objectclass bei dn={} vorhanden\n".format(dn))
+            self.logger.write("[NOOC] Es ist keine Objectclass bei dn={} vorhanden\n".format(dn))
 
     def reduceMultipleStructural(self, dn, entry):
         '''
