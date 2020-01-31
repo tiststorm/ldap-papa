@@ -1,62 +1,62 @@
 dn: dc=adm
-objectclass: organization
-objectclass: dcObject
+objectClass: organization
+objectClass: dcObject
 o: TSI
 dc: adm
 
 dn: o=TSI,dc=adm
-objectclass: organization
-objectclass: dcObject
+objectClass: organization
+objectClass: dcObject
 o: TSI
 dc: adm
 
 dn: cn=testA,o=TSI,dc=adm
-objectclass: device
+objectClass: device
 cn: testA
 o: TSI
 sn: meinNameIstTestA
 
 dn: cn=testB,o=TSI,dc=adm
-objectclass: inetOrgPerson
-objectclass: device
+objectClass: inetOrgPerson
+objectClass: device
 cn: testB
 sn: meinNameIstTestB
 o: TSI
 
 dn: cn=testC,o=TSI,dc=adm
-objectclass: TSIdevice
+objectClass: TSIdevice
 cn: testC
 sn: meinNameIstTestC
 o: TSI
 
 dn: cn=testD,o=TSI,dc=adm
-objectclass: dummyPerson
+objectClass: dummyPerson
 cn: testD
 sn: meinNameIstTestD
 o: TSI
 
 dn: cn=testAC,o=TSI,dc=adm
-objectclass: device
-objectclass: TSIdevice
+objectClass: device
+objectClass: TSIdevice
 cn: testAC
 sn: meinNameIstTestAC
 o: TSI
 
 dn: cn=testBD,o=TSI,dc=adm
-objectclass: person
-objectclass: dummyPerson
+objectClass: person
+objectClass: dummyPerson
 cn: testBD
 sn: meinNameIstTestBD
 o: TSI
 
 dn: cn=testBC,o=TSI,dc=adm
-objectclass: TSIdevice
-objectclass: inetOrgPerson
+objectClass: TSIdevice
+objectClass: inetOrgPerson
 cn: testBD
 sn: meinNameIstTestBD
 o: TSI
 
 dn: cn=testE,o=TSI,dc=adm
-cn: testE 
+cn: testE
 sn: meinNameIstTestE
 o: TSI

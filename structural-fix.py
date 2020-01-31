@@ -1,6 +1,7 @@
 #! /usr/bin/python
 
 from ldif import LDIFParser, LDIFWriter
+import sys,getopt
 
 ALL_STRUCTURALS = ["TSIdevice","inetOrgPerson","device", "person","nisNetgroup"]
 
@@ -47,7 +48,7 @@ def modifyEntryValues(func, entry):
 
 
 class StructuralLDIFParser(LDIFParser):
-    def __init__(self, inputFile, outputFile):
+    def __init__(self, inputFile, outputFile, logFile):
         LDIFParser.__init__(self,inputFile)
 
         self.count = 0
@@ -56,6 +57,7 @@ class StructuralLDIFParser(LDIFParser):
         self.decodeError = 0
         self.unmapped = 0
         self.writer = LDIFWriter(outputFile)
+        self.logger = logFile
 
     def handle(self, dn, entry):
         self.count+=1
@@ -65,9 +67,9 @@ class StructuralLDIFParser(LDIFParser):
             modifyEntryValues(lambda x: x.decode(), entry)
            # print(sharedClasses(entry,ALL_STRUCTURALS))
             if (sharedClasses(entry, ALL_STRUCTURALS) == 0):
-                self.addMissingStructural(entry)
+                self.addMissingStructural(dn, entry)
             if (sharedClasses(entry, ALL_STRUCTURALS) == 2):
-                self.reduceMultipleStructural(entry)
+                self.reduceMultipleStructural(dn, entry)
         #Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
             #print(dn, entry, "\n")
             modifyEntryValues(lambda x: x.encode("utf-8"), entry)
@@ -75,10 +77,12 @@ class StructuralLDIFParser(LDIFParser):
             self.writer.unparse(dn, entry)
         except UnicodeDecodeError:
             self.decodeError +=1
+            self.logger.write("[ERROR][DECODEERROR] UnicodeDecodeError bei dn={}\n".format(dn))
         finally:
-            print("Betrachtet: {} Missing Struct: {} Multiple Struct {} DecodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
+            #print("Betrachtet: {} Missing Struct: {} Multiple Struct {} DecodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
+            pass
 
-    def addMissingStructural(self, entry):
+    def addMissingStructural(self, dn, entry):
         '''
         Fehlerfall: Record hat kein Structural als Oberklasse
         Es wird ein vordefiniertes Default Structural ergänzt
@@ -86,10 +90,12 @@ class StructuralLDIFParser(LDIFParser):
         try:
             entry["objectClass"].append(DEFAULT_STRUCTURAL)
             self.missingStructurals += 1
+            self.logger.write("[INFO] Es wurde ein Structural bei dn={} ergänzt\n".format(dn))
         except KeyError:
             entry["objectClass"] = [DEFAULT_STRUCTURAL]
+            self.logger.write("[ERROR][NOOC] Es war keine Objectclass bei dn={} vorhanden\n".format(dn))
 
-    def reduceMultipleStructural(self, entry):
+    def reduceMultipleStructural(self, dn, entry):
         '''
         Fehlerfall: Record hat mehr als ein Structural als Oberklasse
         Die Nicht-Structural Oberklassen bleiben bestehen, nach einem vordefinierten Mapping werden die Objectclasses modifiziert
@@ -98,12 +104,33 @@ class StructuralLDIFParser(LDIFParser):
         if tuple(structurals) in STRUCTURAL_OBJECTCLASS_MAPPING:
             self.multipleStructurals+=1
             entry["objectClass"] = nonstructurals + STRUCTURAL_OBJECTCLASS_MAPPING[tuple(structurals)]
+            self.logger.write("[INFO] Bei dn={} wurde erfolgreich ein Mapping durchgeführt\n".format(dn))
         else:
             self.unmapped+=1
-with open('app_dc_app.ldif','r') as inFile, open('app_dc_app_modified.ldif','w') as outFile:
-    parser = StructuralLDIFParser(inFile, outFile)
+            self.logger.write("[ERROR][UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
+
+
+inputfile = ''
+outputfile = ''
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"hi:o:l:",["ifile=","ofile=","lfile="])
+except getopt.GetoptError:
+    print('test.py -i <inputfile> -o <outputfile> -l <logfile>')
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+       print('structural_fix.py -i <inputfile> -o <outputfile> -l <logfile>')
+       sys.exit()
+    elif opt in ("-i", "--ifile"):
+       inputfile = arg
+    elif opt in ("-o", "--ofile"):
+       outputfile = arg
+    elif opt in ("-l", "--lfile"):
+       logfile  = arg
+#print(inputfile,outputfile, logfile)
+
+with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfile,'w') as logFile:
+    parser = StructuralLDIFParser(inFile, outFile, logFile)
     parser.parse()
-    print("")
-    print("")
-    print("finished")
+    print("\nfinished")
 
