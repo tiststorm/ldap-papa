@@ -90,7 +90,7 @@ class StructuralLDIFParser(LDIFParser):
         try:
             entry["objectClass"].append(DEFAULT_STRUCTURAL)
             self.missingStructurals += 1
-            self.logger.write("[INFO] Es wurde ein Structural bei dn={} ergänzt\n".format(dn))
+            self.logger.write("[INFO][NEWOC] Es wurde ein Structural bei dn={} ergänzt\n".format(dn))
         except KeyError:
             entry["objectClass"] = [DEFAULT_STRUCTURAL]
             self.logger.write("[ERROR][NOOC] Es war keine Objectclass bei dn={} vorhanden\n".format(dn))
@@ -104,7 +104,7 @@ class StructuralLDIFParser(LDIFParser):
         if tuple(structurals) in STRUCTURAL_OBJECTCLASS_MAPPING:
             self.multipleStructurals+=1
             entry["objectClass"] = nonstructurals + STRUCTURAL_OBJECTCLASS_MAPPING[tuple(structurals)]
-            self.logger.write("[INFO] Bei dn={} wurde erfolgreich ein Mapping durchgeführt\n".format(dn))
+            self.logger.write("[INFO][NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping durchgeführt\n".format(dn))
         else:
             self.unmapped+=1
             self.logger.write("[ERROR][UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
