@@ -77,9 +77,9 @@ class StructuralLDIFParser(LDIFParser):
             self.writer.unparse(dn, entry)
         except UnicodeDecodeError:
             self.decodeError +=1
-            self.logger.write("[ERROR][DECODEERROR] UnicodeDecodeError bei dn={}\n".format(dn))
+            self.logger.write("[DECODEERROR] UnicodeDecodeError bei dn={}\n".format(dn))
         finally:
-            #print("Betrachtet: {} Missing Struct: {} Multiple Struct {} DecodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
+            print("Betrachtet: {} Missing Struct: {} Multiple Struct {} DecodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
             pass
 
     def addMissingStructural(self, dn, entry):
@@ -90,10 +90,10 @@ class StructuralLDIFParser(LDIFParser):
         try:
             entry["objectClass"].append(DEFAULT_STRUCTURAL)
             self.missingStructurals += 1
-            self.logger.write("[INFO][NEWOC] Es wurde ein Structural bei dn={} ergänzt\n".format(dn))
+            self.logger.write("[NEWOC] Es wurde ein Structural bei dn={} ergänzt\n".format(dn))
         except KeyError:
             entry["objectClass"] = [DEFAULT_STRUCTURAL]
-            self.logger.write("[ERROR][NOOC] Es war keine Objectclass bei dn={} vorhanden\n".format(dn))
+            self.logger.write("[NOOC] Es war keine Objectclass bei dn={} vorhanden\n".format(dn))
 
     def reduceMultipleStructural(self, dn, entry):
         '''
@@ -103,11 +103,12 @@ class StructuralLDIFParser(LDIFParser):
         structurals, nonstructurals = splitClasses(entry, ALL_STRUCTURALS)
         if tuple(structurals) in STRUCTURAL_OBJECTCLASS_MAPPING:
             self.multipleStructurals+=1
-            entry["objectClass"] = nonstructurals + STRUCTURAL_OBJECTCLASS_MAPPING[tuple(structurals)]
-            self.logger.write("[INFO][NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping durchgeführt\n".format(dn))
+            newStructural = STRUCTURAL_OBJECTCLASS_MAPPING[tuple(structurals)]
+            entry["objectClass"] = nonstructurals + newStructural
+            self.logger.write("[NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping von {} auf {} durchgeführt\n".format(dn, structurals, newStructural))
         else:
             self.unmapped+=1
-            self.logger.write("[ERROR][UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
+            self.logger.write("[UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
 
 
 inputfile = ''
