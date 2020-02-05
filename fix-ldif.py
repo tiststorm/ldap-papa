@@ -14,7 +14,8 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
 OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID"]
-OPERATIONAL_ATTRS2 = ["memberOf","userPassword","entryID","entryUID"]
+OPERATIONAL_ATTRS2 = ["memberOf","entryID","entryUID"]
+DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nsAccountLock","nscpEntryDN","nsParentUniqueId","nsUniqueId"]
 
 
 STRUCTURAL_OBJECTCLASS_MAPPING = {
@@ -127,7 +128,10 @@ def modifyEntryValues(func, entry):
     Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Values im Entry an
     '''
     for k,v in entry.items():
-        entry[k] = list(map(func,v))
+        try:
+            entry[k] = list(map(func,v))
+        except Exception:
+            pass
 
 def modifyAttributeNames(func, entry):
     '''
@@ -153,7 +157,6 @@ def deleteOperationalAttributes(entry, operational_attributes):
     changed = dict(entry)
     for k in entry.keys():
         if k in operational_attributes:
-#            print("lösche operational Attribut ",k)
             del changed[k]
     return changed
 
@@ -163,13 +166,26 @@ def deleteEmptyAttributes(entry):
     '''
     changed = dict(entry)
     for k in entry.keys():
-        #print(k,entry[k])
-#        print("untersuche Attribut {}: {}".format(k,entry[k]))
-        #Hier liegt der Fehler: Du willst nicht schauen ob entry[k] gleich "" ist, denn entry[k] ist ja die Liste mit allen Einträgen von Objectclass, du willst den einen leeren Eintrag IN dieser Liste (entry[k]) entfernen
-        #if entry[k] == "":
-#        print("lösche leeres Attribut ",k)
         if "" in entry[k]:
-            entry[k].remove("")
+# FEHLER Tim?            entry[k].remove("")
+            changed[k].remove("")
+    return changed
+
+def reencode(self, dn,entry,debug):
+    '''
+    encoded explizit alle verbliebenen str-values eines entry nach bytes
+    wird nach einer exception in unparse() aufgerufen, 
+    '''
+    changed = dict(entry)
+    if debug: print(dn,entry)
+    for k,v in entry.items():
+        for l in range(0, len(v)):
+            if (isinstance(entry[k][l],str)):
+                if debug:
+                    print("problematisches Element",l,"ist",type(entry[k][l]),"  value=X",entry[k][l],"X")
+                changed[k][l] = changed[k][l].encode()
+                if debug: print("Korrigiertes    Element",l,"ist",type(changed[k][l]),"value=X",entry[k][l],"X")
+                self.logger.write("[DECODEERROR] Es wurde Element {} = {} bei dn={} erneut encodiert\n".format(l,entry[k][l],dn))
     return changed
 
 class StructuralLDIFParser(LDIFParser):
@@ -191,37 +207,46 @@ class StructuralLDIFParser(LDIFParser):
         parset alle Entries im inputFile
         '''
         self.count+=1
+#        try:
+        #Konvertiert alle Objektattributseinträge zu Strings damit Stringoperationen normal durchgeführt werden können
+        modifyEntryValues(lambda x: x.decode(), entry)
+
+        # bedient sich austauschbarer Funktion (hier: löscht CSN aus Attributensname)
+        entry = modifyAttributeNames(deleteCSN, entry)
+
+        # löscht leere Attribute (können von der Form "attribut;.....;deleted:" sein)
+        entry = deleteEmptyAttributes(entry)
+
+        # löscht operational Attribute
+        # wichtig: erst NACH Vereinheitlichung des Attributnamens
+        entry = deleteOperationalAttributes(entry, getOperationals())
+
+        # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
+        if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
+            self.addMissingStructural(dn, entry)
+        # ersetzt 2 STRUCTURAL objectClasses durch 2 andere (siehe Mapping in STRUCTURAL_OBJECTCLASS_MAPPING)
+        if (sharedClasses(entry, self.ALL_STRUCTURALS) == 2):
+            self.reduceMultipleStructural(dn, entry)
+
+        #Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
+        modifyEntryValues(lambda x: x.encode("utf-8"), entry)
+
         try:
-            #Konvertiert alle Objektattributseinträge zu Strings damit Stringoperationen normal durchgeführt werden können
-            modifyEntryValues(lambda x: x.decode(), entry)
-
-            # bedient sich austauschbarer Funktion (hier: löscht CSN aus Attributensname)
-            entry = modifyAttributeNames(deleteCSN, entry)
-
-            # löscht leere Attribute (können von der Form "attribut;.....;deleted:" sein)
-            entry = deleteEmptyAttributes(entry)
-
-            # löscht operational Attribute
-            # wichtig: erst NACH Vereinheitlichung des Attributnamens
-            entry = deleteOperationalAttributes(entry, getOperationals())
-
-            # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
-            if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
-                self.addMissingStructural(dn, entry)
-            # ersetzt 2 STRUCTURAL objectClasses durch 2 andere (siehe Mapping in STRUCTURAL_OBJECTCLASS_MAPPING)
-            if (sharedClasses(entry, self.ALL_STRUCTURALS) == 2):
-                self.reduceMultipleStructural(dn, entry)
-
-            #Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
-            modifyEntryValues(lambda x: x.encode("utf-8"), entry)
-
             self.writer.unparse(dn, entry)
-        except UnicodeDecodeError:
-            self.decodeError +=1
-            self.logger.write("[DECODEERROR] UnicodeDecodeError bei dn={}\n".format(dn))
-        finally:
-            print("Betrachtet: {} Missing Struct: {} Multiple Struct {} DecodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
-            pass
+        except Exception:
+            # ist das Problem immer das Element[0]?? Haben wir einen off-by-one-Fehler?
+            entry = reencode(self, dn, entry, True)
+            print("--------------------------------------------------------------------------------------------------------------")
+            entry = reencode(self, dn, entry, True)
+            print("--------------------------------------------------------------------------------------------------------------")
+            print("--------------------------------------------------------------------------------------------------------------")
+
+#        except UnicodeDecodeError:
+#            self.decodeError +=1
+#            self.logger.write("[DECODEERROR] UnicodeDecodeError bei dn={}\n{}".format(dn,entry))
+#        finally:
+        print("Analysiert: {} Missing Struct: {} Multiple Struct {} DecodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
+#            pass
 
     def addMissingStructural(self, dn, entry):
         '''
