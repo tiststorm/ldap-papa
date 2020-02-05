@@ -21,7 +21,9 @@ STRUCTURAL_OBJECTCLASS_MAPPING = {
     ("device","inetOrgPerson") : ["TSIdevice","dummyPerson"],
     ("device","nisNetgroup") : ["TSIdevice", "dummyPerson"],
     ("account","organizationalPerson") : ["TSIdevice", "dummyPerson"],
-    ("applicationEntity","person") : ["TSIdevice", "dummyPerson"]
+    ("applicationEntity","person") : ["TSIdevice", "dummyPerson"],
+    ("device","person") : ["TSIdevice", "dummyPerson"],
+    ("applicationProcess","referral") : ["TSIdevice", "dummyPerson"]
 }
 
 
@@ -134,8 +136,9 @@ def modifyAttributeNames(func, entry):
     in allgemeingültige zu konvertieren.
     '''
     changed = dict(entry)
-
     for k in entry.keys():
+        #if ";deleted:" in k:
+        #    print(entry[k])
         if ";" in k:
             new_attribute=func(k,";")
             if new_attribute not in changed: changed[new_attribute] = []
@@ -150,7 +153,7 @@ def deleteOperationalAttributes(entry, operational_attributes):
     changed = dict(entry)
     for k in entry.keys():
         if k in operational_attributes:
-            print("lösche ",k)
+#            print("lösche operational Attribut ",k)
             del changed[k]
     return changed
 
@@ -160,8 +163,14 @@ def deleteEmptyAttributes(entry):
     '''
     changed = dict(entry)
     for k in entry.keys():
-        if entry[k] == "": del changed[k]
-    changed = dict(entry)
+        #print(k,entry[k])
+#        print("untersuche Attribut {}: {}".format(k,entry[k]))
+        #Hier liegt der Fehler: Du willst nicht schauen ob entry[k] gleich "" ist, denn entry[k] ist ja die Liste mit allen Einträgen von Objectclass, du willst den einen leeren Eintrag IN dieser Liste (entry[k]) entfernen
+        #if entry[k] == "":
+#        print("lösche leeres Attribut ",k)
+        if "" in entry[k]:
+            entry[k].remove("")
+    return changed
 
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
@@ -189,12 +198,12 @@ class StructuralLDIFParser(LDIFParser):
             # bedient sich austauschbarer Funktion (hier: löscht CSN aus Attributensname)
             entry = modifyAttributeNames(deleteCSN, entry)
 
+            # löscht leere Attribute (können von der Form "attribut;.....;deleted:" sein)
+            entry = deleteEmptyAttributes(entry)
+
             # löscht operational Attribute
             # wichtig: erst NACH Vereinheitlichung des Attributnamens
             entry = deleteOperationalAttributes(entry, getOperationals())
-
-            # löscht leere Attribute (können von der Form "attribut;.....;deleted:" sein)
-            entry = deleteEmptyAttributes(entry)
 
             # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
             if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
