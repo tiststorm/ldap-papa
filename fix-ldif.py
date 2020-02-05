@@ -13,7 +13,7 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
-OPERATIONAL_ATTRS  = ["nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","aci","entryID","entryUID"]
+OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID"]
 OPERATIONAL_ATTRS2 = ["memberOf","userPassword","entryID","entryUID"]
 
 
@@ -81,8 +81,8 @@ def getStructurals():
                 aux+=1
             elif "ABSTRACT" in str(oc):
                 abstract+=1
-            else:
-                print(oc)
+#            else:
+#                print(oc)
             count+=1
 
     print("structural/abstract/auxiliary = {}/{}/{} of {} entries".format(struct,abstract,aux,count))
@@ -118,7 +118,6 @@ def splitClasses(entry, classesToInspect):
 
 def deleteCSN(value, separator):
     v = value.split(separator)[0]
-#    print("splitte \"{}\" => \"{}\"".format(value,v))
     return v
  
 def modifyEntryValues(func, entry):
@@ -135,7 +134,6 @@ def modifyAttributeNames(func, entry):
     in allgemeingültige zu konvertieren.
     '''
     changed = dict(entry)
-    print(changed, entry)
 
     for k in entry.keys():
         if ";" in k:
@@ -151,9 +149,19 @@ def deleteOperationalAttributes(entry, operational_attributes):
     '''
     changed = dict(entry)
     for k in entry.keys():
-        if ";" in operational_attributes:
+        if k in operational_attributes:
+            print("lösche ",k)
             del changed[k]
     return changed
+
+def deleteEmptyAttributes(entry):
+    '''
+    Nimmt einen Entry entgegen und löscht alle Attribute, die kein value haben (bzw. von der Form "attribut;.....;deleted:" sind)
+    '''
+    changed = dict(entry)
+    for k in entry.keys():
+        if entry[k] == "": del changed[k]
+    changed = dict(entry)
 
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
@@ -181,9 +189,12 @@ class StructuralLDIFParser(LDIFParser):
             # bedient sich austauschbarer Funktion (hier: löscht CSN aus Attributensname)
             entry = modifyAttributeNames(deleteCSN, entry)
 
-            # löscht operaA tional Attribute
+            # löscht operational Attribute
             # wichtig: erst NACH Vereinheitlichung des Attributnamens
             entry = deleteOperationalAttributes(entry, getOperationals())
+
+            # löscht leere Attribute (können von der Form "attribut;.....;deleted:" sein)
+            entry = deleteEmptyAttributes(entry)
 
             # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
             if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
