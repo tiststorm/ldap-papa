@@ -3,7 +3,6 @@
 from ldif import LDIFParser, LDIFWriter
 import sys,getopt,ldap
 
-#ALL_STRUCTURALS = ["TSIdevice","inetOrgPerson","device", "person","nisNetgroup"]
 
 URI = "ldap://25.16.128.69:3389/"
 BINDDN = "cn=Manager,dc=adm"
@@ -12,13 +11,17 @@ SCHEMA_DN = "cn=schema,cn=config"
 SCHEMA_FILTER = "(objectclass=olcSchemaConfig)"
 SCHEMA_ATTRS = ["olcObjectClasses"]
 
-DEFAULT_STRUCTURAL = "DEFAULTOC"
+DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
+OPERATIONAL_ATTRS  = ["nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","aci","entryID","entryUID"]
+OPERATIONAL_ATTRS2 = ["memberOf","userPassword","entryID","entryUID"]
 
 
 STRUCTURAL_OBJECTCLASS_MAPPING = {
     ("device","inetOrgPerson") : ["TSIdevice","dummyPerson"],
-    ("device","nisNetgroup") : ["TSIdevice", "dummyPerson"]
+    ("device","nisNetgroup") : ["TSIdevice", "dummyPerson"],
+    ("account","organizationalPerson") : ["TSIdevice", "dummyPerson"],
+    ("applicationEntity","person") : ["TSIdevice", "dummyPerson"]
 }
 
 
@@ -94,6 +97,7 @@ def compareClasses(entry, classes):
         return [(x.casefold() in [o.casefold() for o in entry["objectClass"]]) for x in classes]
     except KeyError:
         return []
+
 def splitClasses(entry, classesToInspect):
     """
     Nimmt einen Record und gibt ein Tupel (a, b) mit
@@ -109,13 +113,34 @@ def splitClasses(entry, classesToInspect):
     absent.sort()
     return (present, absent)
 
-
+def deleteCSN(value, separator):
+    v = value.split(separator)[0]
+#    print("splitte \"{}\" => \"{}\"".format(value,v))
+    return v
+ 
 def modifyEntryValues(func, entry):
     '''
     Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Values im Entry an
     '''
     for k,v in entry.items():
         entry[k] = list(map(func,v))
+
+def modifyEntryIndexes(func, entry):
+    '''
+    Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Indexes im Entry an
+    '''
+    for k,v in entry.items():
+        if ";" in k:
+            l=func(k,";")
+#            print("{}: {} => {}: {}                    ".format(k,v,l,v))	# trailing " " um laufenden Output zu überschreiben
+            print("----------------------------------------------------------------------------------")
+            print(entry)
+            print("Lösche     {}: {}                    ".format(k,v))
+            del entry[k]
+            print("Füge hinzu {}: {}                    ".format(l,v))
+            entry.update((l,v))
+            #entry.update({l:v})
+            print(entry)
 
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
@@ -132,13 +157,23 @@ class StructuralLDIFParser(LDIFParser):
         self.ALL_STRUCTURALS = getStructurals()
 
     def handle(self, dn, entry):
+        '''
+        parset alle Entries im inputFile
+        '''
         self.count+=1
         try:
             #Konvertiert alle Objektattributseinträge zu Strings damit Stringoperationen normal durchgeführt werden können
             modifyEntryValues(lambda x: x.decode(), entry)
 
+            # löscht operational Attribute
+            # löscht CSN aus Attributen
+            #modifyEntryIndexes(lambda x: x.deleteCSN(), entry)
+            modifyEntryIndexes(deleteCSN, entry)
+
+            # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
             if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
                 self.addMissingStructural(dn, entry)
+            # ersetzt 2 STRUCTURAL objectClasses durch 2 andere (siehe Mapping in STRUCTURAL_OBJECTCLASS_MAPPING)
             if (sharedClasses(entry, self.ALL_STRUCTURALS) == 2):
                 self.reduceMultipleStructural(dn, entry)
 
@@ -205,7 +240,7 @@ for opt, arg in opts:
 
 with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfile,'w') as logFile:
     parser = StructuralLDIFParser(inFile, outFile, logFile)
-    print("{}".format(parser.ALL_STRUCTURALS))
+#    print("{}".format(parser.ALL_STRUCTURALS))
     print("----------------------------------------------------------------------------------")
     parser.parse()
     print("\nfinished")
