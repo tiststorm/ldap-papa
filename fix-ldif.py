@@ -31,6 +31,9 @@ def usage():
     sys.exit(2)
 
 
+def getOperationals():
+    return OPERATIONAL_ATTRS + OPERATIONAL_ATTRS2
+
 def getStructurals():
     '''
     Liest aus dem Schema eines LDAP-Servers alle STRUCTURAL objectClasses aus
@@ -125,21 +128,12 @@ def modifyEntryValues(func, entry):
     for k,v in entry.items():
         entry[k] = list(map(func,v))
 
-def modifyEntryIndexes(func, entry):
+def modifyAttributeNames(func, entry):
     '''
-    Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Indexes im Entry an
+    Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Attributnamen im Entry an
+    um z.B. serverspezifische Daten wie z.B. "objectClass;vucsn-5d5b850f000000cb0000: dtPasswordManagement"
+    in allgemeingültige zu konvertieren.
     '''
-#    for k,v in entry.items():
-#        if ";" in k:
-#            new_attribute=func(k,";")
-#            print("Ersetze {}: {} durch {}: {}                    ".format(k,v,new_attribute,v))	# trailing " " um laufenden Output zu überschreiben
-#            print("----------------------------------------------------------------------------------")
-#            print(entry)
-#            if new_attribute not in entry: entry[new_attribute] = []
-#            entry[new_attribute] += entry[k]	# Ersetzung des *Tupels*
-#            del entry[k]
-#            entry.update([(l,v)])	# alternativ
-#            print("Entry: ",entry)
     changed = dict(entry)
     print(changed, entry)
 
@@ -147,9 +141,19 @@ def modifyEntryIndexes(func, entry):
         if ";" in k:
             new_attribute=func(k,";")
             if new_attribute not in changed: changed[new_attribute] = []
-            changed[new_attribute] += entry[k]	# Ersetzung des *Tupels*
+            changed[new_attribute] += entry[k]
             del changed[k]
     return changed 
+
+def deleteOperationalAttributes(entry, operational_attributes):
+    '''
+    Nimmt einen Entry entgegen und löscht alle Attribute, die in OPERATIONAL_ATTRIBUTES gelistet sind
+    '''
+    changed = dict(entry)
+    for k in entry.keys():
+        if ";" in operational_attributes:
+            del changed[k]
+    return changed
 
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
@@ -174,10 +178,12 @@ class StructuralLDIFParser(LDIFParser):
             #Konvertiert alle Objektattributseinträge zu Strings damit Stringoperationen normal durchgeführt werden können
             modifyEntryValues(lambda x: x.decode(), entry)
 
-            # löscht operational Attribute
-            # löscht CSN aus Attributen
-            #modifyEntryIndexes(lambda x: x.deleteCSN(), entry)
-            entry = modifyEntryIndexes(deleteCSN, entry)
+            # bedient sich austauschbarer Funktion (hier: löscht CSN aus Attributensname)
+            entry = modifyAttributeNames(deleteCSN, entry)
+
+            # löscht operaA tional Attribute
+            # wichtig: erst NACH Vereinheitlichung des Attributnamens
+            entry = deleteOperationalAttributes(entry, getOperationals())
 
             # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
             if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
@@ -188,8 +194,6 @@ class StructuralLDIFParser(LDIFParser):
 
             #Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
             modifyEntryValues(lambda x: x.encode("utf-8"), entry)
-
-
 
             self.writer.unparse(dn, entry)
         except UnicodeDecodeError:
