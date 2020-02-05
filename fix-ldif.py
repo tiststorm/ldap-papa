@@ -184,7 +184,9 @@ def reencode(self, dn,entry,debug):
                 if debug:
                     print("problematisches Element",l,"ist",type(entry[k][l]),"  value=X",entry[k][l],"X")
                 changed[k][l] = changed[k][l].encode()
-                if debug: print("Korrigiertes    Element",l,"ist",type(changed[k][l]),"value=X",entry[k][l],"X")
+                self.decodeError += 1
+                if debug:
+                    print("Korrigiertes    Element",l,"ist",type(changed[k][l]),"value=X",entry[k][l],"X")
                 self.logger.write("[DECODEERROR] Es wurde Element {} = {} bei dn={} erneut encodiert\n".format(l,entry[k][l],dn))
     return changed
 
@@ -235,18 +237,19 @@ class StructuralLDIFParser(LDIFParser):
             self.writer.unparse(dn, entry)
         except Exception:
             # ist das Problem immer das Element[0]?? Haben wir einen off-by-one-Fehler?
-            entry = reencode(self, dn, entry, True)
-            print("--------------------------------------------------------------------------------------------------------------")
-            entry = reencode(self, dn, entry, True)
-            print("--------------------------------------------------------------------------------------------------------------")
-            print("--------------------------------------------------------------------------------------------------------------")
+            entry = reencode(self, dn, entry, False)
+#            print("--------------------------------------------------------------------------------------------------------------")
+#            entry = reencode(self, dn, entry, True)
+#            print("--------------------------------------------------------------------------------------------------------------")
+#            print("--------------------------------------------------------------------------------------------------------------")
 
 #        except UnicodeDecodeError:
 #            self.decodeError +=1
 #            self.logger.write("[DECODEERROR] UnicodeDecodeError bei dn={}\n{}".format(dn,entry))
-#        finally:
-        print("Analysiert: {} Missing Struct: {} Multiple Struct {} DecodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
-#            pass
+
+        finally:
+            print("Analysiert: {} Missing Struct: {} Multiple Struct {} De/EncodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
+            pass
 
     def addMissingStructural(self, dn, entry):
         '''
