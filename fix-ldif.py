@@ -129,16 +129,27 @@ def modifyEntryIndexes(func, entry):
     '''
     Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Indexes im Entry an
     '''
-    for k,v in entry.items():
-        if ";" in k:
-            l=func(k,";")
-            print("Ersetze {}: {} durch {}: {}                    ".format(k,v,l,v))	# trailing " " um laufenden Output zu überschreiben
+#    for k,v in entry.items():
+#        if ";" in k:
+#            new_attribute=func(k,";")
+#            print("Ersetze {}: {} durch {}: {}                    ".format(k,v,new_attribute,v))	# trailing " " um laufenden Output zu überschreiben
 #            print("----------------------------------------------------------------------------------")
 #            print(entry)
-            del entry[k]
-#            entry[l]=v	# Ersetzung des *Tupels*
-            entry.update([(l,v)])	# alternativ
-            print("Entry: ",entry)
+#            if new_attribute not in entry: entry[new_attribute] = []
+#            entry[new_attribute] += entry[k]	# Ersetzung des *Tupels*
+#            del entry[k]
+#            entry.update([(l,v)])	# alternativ
+#            print("Entry: ",entry)
+    changed = dict(entry)
+    print(changed, entry)
+
+    for k in entry.keys():
+        if ";" in k:
+            new_attribute=func(k,";")
+            if new_attribute not in changed: changed[new_attribute] = []
+            changed[new_attribute] += entry[k]	# Ersetzung des *Tupels*
+            del changed[k]
+    return changed 
 
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
@@ -166,7 +177,7 @@ class StructuralLDIFParser(LDIFParser):
             # löscht operational Attribute
             # löscht CSN aus Attributen
             #modifyEntryIndexes(lambda x: x.deleteCSN(), entry)
-            modifyEntryIndexes(deleteCSN, entry)
+            entry = modifyEntryIndexes(deleteCSN, entry)
 
             # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
             if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
