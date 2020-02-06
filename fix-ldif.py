@@ -14,7 +14,7 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
 OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID"]
-OPERATIONAL_ATTRS2 = ["memberOf","entryID","entryUID"]
+OPERATIONAL_ATTRS2 = ["memberOf","ldapSubEntry"]
 DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nsAccountLock","nscpEntryDN","nsParentUniqueId","nsUniqueId"]
 
 
@@ -196,11 +196,13 @@ class StructuralLDIFParser(LDIFParser):
 
         self.count = 0
         self.missingStructurals = 0
+        self.countnonStructurals = 0
         self.multipleStructurals = 0
         self.decodeError = 0
         self.unmapped = 0
         self.writer = LDIFWriter(outputFile)
         self.logger = logFile
+        self.nonStructuralCandidates = {"top"}
 
         self.ALL_STRUCTURALS = getStructurals()
 
@@ -257,12 +259,17 @@ class StructuralLDIFParser(LDIFParser):
         Es wird ein vordefiniertes Default Structural ergänzt
         '''
         try:
+            before=set(self.nonStructuralCandidates)
+            self.nonStructuralCandidates.update(entry["objectClass"])
+            if (self.nonStructuralCandidates != before):
+                self.countnonStructurals = len(self.nonStructuralCandidates)
+#                print("{} objectClasses in entries ohne STRUCTRAL objectClass: {}".format(self.countnonStructurals,self.nonStructuralCandidates))
+            self.logger.write("[NEWOC] Es wurde ein Default-Structural bei dn={} mit den objectClasses {} ergänzt\n".format(dn,entry["objectClass"]))
             entry["objectClass"].append(DEFAULT_STRUCTURAL)
             self.missingStructurals += 1
-            self.logger.write("[NEWOC] Es wurde ein Default-Structural bei dn={} ergänzt\n".format(dn))
         except KeyError:
             entry["objectClass"] = [DEFAULT_STRUCTURAL]
-            self.logger.write("[NOOC] Es ist keine Objectclass bei dn={} vorhanden\n".format(dn))
+            self.logger.write("[NOOC] Es ist gar keine Objectclass bei dn={} vorhanden\n".format(dn))
 
     def reduceMultipleStructural(self, dn, entry):
         '''
@@ -301,9 +308,16 @@ for opt, arg in opts:
 
 with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfile,'w') as logFile:
     parser = StructuralLDIFParser(inFile, outFile, logFile)
-#    print("{}".format(parser.ALL_STRUCTURALS))
-    print("----------------------------------------------------------------------------------")
     parser.parse()
+    print("------------------------------------------------------------------------------------------------------------------")
+    print("Alle STRUCTURAL objectClasses:}\n{}".format(parser.ALL_STRUCTURALS))
+    print("------------------------------------------------------------------------------------------------------------------")
+    print("Alle objectClasses, die in Einträgen ohne STRUCTURAL objectClass vorkommen:\n{}".format(parser.nonStructuralCandidates))
+    print("------------------------------------------------------------------------------------------------------------------")
     print("\nfinished")
 
+
+
+# Art und Anzahl Einträge, die keine STRUCTURAL objectClass haben:
+# grep NEWOC /tmp/logfile | cut -d' ' -f11-|sort |uniq -c
 
