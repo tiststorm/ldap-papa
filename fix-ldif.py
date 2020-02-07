@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
 from ldif import LDIFParser, LDIFWriter
-import sys,getopt,ldap
+import sys,os,getopt,ldap
 
 
 URI = "ldap://25.16.128.69:3389/"
@@ -13,9 +13,11 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
-OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID"]
-OPERATIONAL_ATTRS2 = ["memberOf","ldapSubEntry"]
-DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nsAccountLock","nscpEntryDN","nsParentUniqueId","nsUniqueId"]
+OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
+OPERATIONAL_ATTRS2  = []
+
+DELETE_ATTRS = ["ds6ruv","mailHost","nsds50ruv", "nsds5ReplConflict"]
+DELETE_ATTRS2 = ["nscpEntryDN","nsParentUniqueId","nsUniqueId"]
 
 
 STRUCTURAL_OBJECTCLASS_MAPPING = {
@@ -30,7 +32,7 @@ STRUCTURAL_OBJECTCLASS_MAPPING = {
 
 
 def usage():
-    print('structural_fix.py -i <inputfile> -o <outputfile> -l <logfile>')
+    print("{} -i <inputfile> -o <outputfile> -l <logfile>'".format(os.path.basename(__file__)))
     sys.exit(2)
 
 
@@ -211,7 +213,6 @@ class StructuralLDIFParser(LDIFParser):
         parset alle Entries im inputFile
         '''
         self.count+=1
-#        try:
         #Konvertiert alle Objektattributseinträge zu Strings damit Stringoperationen normal durchgeführt werden können
         modifyEntryValues(lambda x: x.decode(), entry)
 
@@ -310,7 +311,7 @@ with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfil
     parser = StructuralLDIFParser(inFile, outFile, logFile)
     parser.parse()
     print("------------------------------------------------------------------------------------------------------------------")
-    print("Alle STRUCTURAL objectClasses:}\n{}".format(parser.ALL_STRUCTURALS))
+    print("Alle STRUCTURAL objectClasses:\n{}".format(parser.ALL_STRUCTURALS))
     print("------------------------------------------------------------------------------------------------------------------")
     print("Alle objectClasses, die in Einträgen ohne STRUCTURAL objectClass vorkommen:\n{}".format(parser.nonStructuralCandidates))
     print("------------------------------------------------------------------------------------------------------------------")
