@@ -24,8 +24,8 @@ DELETE_ATTRS2 = ["groupOfUniqueNames"]
 # besodners schwierig bei operational Attributen wie groupOfUniqueNames
 # Falls oC existiert aber musthave-Attribut(E) nicht, dann füge letztere mit Dummy-Values hinzu
 # Wenn 
-OC_ATTR_DEPENDENCY = [ {oC:"groupOfUniqueNames", musthave: ["uniquemember"], dummyValue:"deleted"},
-                       {oC:"exampleOCwithoutAttrs", musthave: [], dummyValue:""} ]
+
+OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")] }
 
 
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
@@ -93,7 +93,6 @@ def getStructurals():
                 l = s.replace("'","").split(" ")
                 for i in range(len(l)):
                     if l[i] == "NAME":
-#                        print("{0}./{1}. Wort = {2}/{3}".format(i,i+1,l[i],l[i+1]))
                         if l[i+1] == "(":
                             out.append("{}".format(l[i+2]))
                             out.append("{}".format(l[i+3]))
@@ -103,8 +102,6 @@ def getStructurals():
                 aux+=1
             elif "ABSTRACT" in str(oc):
                 abstract+=1
-#            else:
-#                print(oc)
             count+=1
 
     print("structural/abstract/auxiliary = {}/{}/{} of {} entries".format(struct,abstract,aux,count))
@@ -124,31 +121,21 @@ def compareClasses(entry, classes):
         return []
 
 
-def sanitizeObjectclass(entry, dependencies, oc, attr):
-    """
-    ergänzt in einem Entry einen dummy-Wert für attr, weil oc im entry enthalten ist, das zugehörige musthave attr aber nicht
-    """
-#dependencies = [ {oC:"groupOfUniqueNames", musthave: ["uniquemember"], dummyValue:"deleted"},
-        entry += dependencies[oc]
-"dummyValue"]
-    return entry
-
-def sanityCheckObjectClasses(entry, dependencies):
+def sanitizeObjectClasses(entry, dependencies):
     """
     prüft ob zu bestimmten objectClasses gehörige Attribute vorhanden sind (Liste als "dependencies" übergeben)
     löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und ruft sanitizeEntry auf, um ein dummy-Attribut zu setzen
     """
-
-    for x in entry["objectClass"]:
-        for y in dependencies:
-            if x == y["oC"]         # steht objectClass x in der Liste mit den dependencies ?
-                z = y["musthave"]   # z := Liste aller musthave Argumente)
-                if z == "":         # keine musthave-Attibute für oC x => lösche oC x
-                    entry[x].del()  # oder wie ??
-                else:
-                    for k in z:                         # checken ob alle zur oC zwingend gehörigen Attribute im Entry vorhanden sind
-                        if entry[k] == "":              # Entry hat kein Attribut k, obwohl dieses für die oC x erforderlich ist
-                            entry = sanitizeEntry(entry, dependencies, x, k)
+    for oC in entry["objectClass"]:
+        if oC in dependencies: # Wir wollen für diese Objectclass oC alle dependencies überprüfen
+            l = [d[0] not in entry for d in dependencies[oC]]
+            if all(l):
+                entry["objectClass"].remove(oC)
+                break
+            for attribute, value in dependencies[oC]: 
+                if attribute not in entry:
+                    entry[attribute] = [value] # fügt dem dict neuen Eintrag mit key = Attributs-Name und value = dummy hinzu
+    return entry
 
 
 
@@ -189,8 +176,6 @@ def modifyAttributeNames(func, entry):
     '''
     changed = dict(entry)
     for k in entry.keys():
-        #if ";deleted:" in k:
-        #    print(entry[k])
         if ";" in k:
             new_attribute=func(k,";")
             if new_attribute not in changed: changed[new_attribute] = []
@@ -213,10 +198,9 @@ def deleteEmptyAttributes(entry):
     Nimmt einen Entry entgegen und löscht alle Attribute, die kein value haben (bzw. von der Form "attribut;.....;deleted:" sind)
     '''
     changed = dict(entry)
-    for k in entry.keys():
-        if "" in entry[k]:
-# FEHLER Tim?            entry[k].remove("")
-            changed[k].remove("")
+    for k,v in entry.items():
+        if [""] == v:	# FAST equivalent if entry[k] == [] (aber auch Existenz eines NULL Listenelementes
+            del changed[k]
     return changed
 
 def reencode(self, dn,entry,debug):
@@ -274,6 +258,9 @@ class StructuralLDIFParser(LDIFParser):
 
         # löscht weitere (operational, aber nicht DSEE spezifische) Attribute wie groupOfUniqueNames
         entry = deleteOperationalAttributes(entry, getAttributesToBeDeleted())
+
+        # ergänzt falls musthave Attribute fehlen das Attribut mit DummyValue 
+        entry = sanitizeObjectClasses(entry, OC_ATTR_DEPENDENCY) 
 
         # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
         if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
@@ -359,7 +346,7 @@ for opt, arg in opts:
 with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfile,'w') as logFile:
     parser = StructuralLDIFParser(inFile, outFile, logFile)
     print("------------------------------------------------------------------------------------------------------------------")
-#    parser.parse()
+    parser.parse()
 #    print("------------------------------------------------------------------------------------------------------------------")
 #    print("Alle STRUCTURAL objectClasses:\n{}".format(parser.ALL_STRUCTURALS))
 #    print("------------------------------------------------------------------------------------------------------------------")
