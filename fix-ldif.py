@@ -19,6 +19,15 @@ OPERATIONAL_ATTRS2  = []
 DELETE_ATTRS = ["ds6ruv","mailHost","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
 DELETE_ATTRS2 = ["groupOfUniqueNames"]
 
+
+# Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute#
+# besodners schwierig bei operational Attributen wie groupOfUniqueNames
+# Falls oC existiert aber musthave-Attribut(E) nicht, dann füge letztere mit Dummy-Values hinzu
+# Wenn 
+OC_ATTR_DEPENDENCY = [ {oC:"groupOfUniqueNames", musthave: ["uniquemember"], dummyValue:"deleted"},
+                       {oC:"exampleOCwithoutAttrs", musthave: [], dummyValue:""} ]
+
+
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
 # (für inetOrPerson,organizationalPerson scheint es keine Einträge zu geben)
 # person => MAY (sn $ cn )
@@ -113,6 +122,35 @@ def compareClasses(entry, classes):
         return [(x.casefold() in [o.casefold() for o in entry["objectClass"]]) for x in classes]
     except KeyError:
         return []
+
+
+def sanitizeObjectclass(entry, dependencies, oc, attr):
+    """
+    ergänzt in einem Entry einen dummy-Wert für attr, weil oc im entry enthalten ist, das zugehörige musthave attr aber nicht
+    """
+#dependencies = [ {oC:"groupOfUniqueNames", musthave: ["uniquemember"], dummyValue:"deleted"},
+        entry += dependencies[oc]
+"dummyValue"]
+    return entry
+
+def sanityCheckObjectClasses(entry, dependencies):
+    """
+    prüft ob zu bestimmten objectClasses gehörige Attribute vorhanden sind (Liste als "dependencies" übergeben)
+    löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und ruft sanitizeEntry auf, um ein dummy-Attribut zu setzen
+    """
+
+    for x in entry["objectClass"]:
+        for y in dependencies:
+            if x == y["oC"]         # steht objectClass x in der Liste mit den dependencies ?
+                z = y["musthave"]   # z := Liste aller musthave Argumente)
+                if z == "":         # keine musthave-Attibute für oC x => lösche oC x
+                    entry[x].del()  # oder wie ??
+                else:
+                    for k in z:                         # checken ob alle zur oC zwingend gehörigen Attribute im Entry vorhanden sind
+                        if entry[k] == "":              # Entry hat kein Attribut k, obwohl dieses für die oC x erforderlich ist
+                            entry = sanitizeEntry(entry, dependencies, x, k)
+
+
 
 def splitClasses(entry, classesToInspect):
     """
@@ -320,13 +358,13 @@ for opt, arg in opts:
 
 with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfile,'w') as logFile:
     parser = StructuralLDIFParser(inFile, outFile, logFile)
-    parser.parse()
     print("------------------------------------------------------------------------------------------------------------------")
-    print("Alle STRUCTURAL objectClasses:\n{}".format(parser.ALL_STRUCTURALS))
-    print("------------------------------------------------------------------------------------------------------------------")
-    print("Alle objectClasses, die in Einträgen ohne STRUCTURAL objectClass vorkommen:\n{}".format(parser.nonStructuralCandidates))
-    print("------------------------------------------------------------------------------------------------------------------")
-    print("\nfinished")
+#    parser.parse()
+#    print("------------------------------------------------------------------------------------------------------------------")
+#    print("Alle STRUCTURAL objectClasses:\n{}".format(parser.ALL_STRUCTURALS))
+#    print("------------------------------------------------------------------------------------------------------------------")
+#    print("Alle objectClasses, die in Einträgen ohne STRUCTURAL objectClass vorkommen:\n{}".format(parser.nonStructuralCandidates))
+#    print("------------------------------------------------------------------------------------------------------------------")
 
 
 
