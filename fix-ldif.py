@@ -16,17 +16,22 @@ DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
 OPERATIONAL_ATTRS2  = []
 
-DELETE_ATTRS = ["ds6ruv","mailHost","nsds50ruv", "nsds5ReplConflict"]
-DELETE_ATTRS2 = ["nscpEntryDN","nsParentUniqueId","nsUniqueId"]
+DELETE_ATTRS = ["ds6ruv","mailHost","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
+DELETE_ATTRS2 = ["groupOfUniqueNames"]
 
-
+# dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
+# (für inetOrPerson,organizationalPerson scheint es keine Einträge zu geben)
+# person => MAY (sn $ cn )
+# nisNetgroup => MAY ( nisNetgroupTriple $ memberNisNetgroup $ description )
+# WAS GILT für device ? wg STRUCTURAL Ableitung von TSIdevice aus device bleiben MUS+MAY dafür erhalten
+# wurde TSIdevice schon in Schema gegossen?
 STRUCTURAL_OBJECTCLASS_MAPPING = {
-    ("device","inetOrgPerson") : ["TSIdevice","dummyPerson"],
-    ("device","nisNetgroup") : ["TSIdevice", "dummyPerson"],
-    ("account","organizationalPerson") : ["TSIdevice", "dummyPerson"],
-    ("applicationEntity","person") : ["TSIdevice", "dummyPerson"],
-    ("device","person") : ["TSIdevice", "dummyPerson"],
-    ("applicationProcess","referral") : ["TSIdevice", "dummyPerson"]
+    ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
+    ("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"],
+    ("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"],
+    ("device","person") : ["TSIdevice", "dummyAUXILIARY"]
+#    ("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"],
+#    ("applicationProcess","referral") : ["TSIdevice", "dummyAUXILIARY"]
 }
 
 
@@ -38,6 +43,9 @@ def usage():
 
 def getOperationals():
     return OPERATIONAL_ATTRS + OPERATIONAL_ATTRS2
+
+def getAttributesToBeDeleted():
+    return DELETE_ATTRS + DELETE_ATTRS2
 
 def getStructurals():
     '''
@@ -222,9 +230,12 @@ class StructuralLDIFParser(LDIFParser):
         # löscht leere Attribute (können von der Form "attribut;.....;deleted:" sein)
         entry = deleteEmptyAttributes(entry)
 
-        # löscht operational Attribute
+        # löscht operational Attribute des DSEE
         # wichtig: erst NACH Vereinheitlichung des Attributnamens
         entry = deleteOperationalAttributes(entry, getOperationals())
+
+        # löscht weitere (operational, aber nicht DSEE spezifische) Attribute wie groupOfUniqueNames
+        entry = deleteOperationalAttributes(entry, getAttributesToBeDeleted())
 
         # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
         if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
