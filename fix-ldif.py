@@ -13,11 +13,18 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
+# bekannt serverübergreifen operationale Parameter
 OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
-OPERATIONAL_ATTRS2  = []
+# anscheinend DSEE-proprietäre operationale Parameter
+OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","passwordAllowChangeTime","accountUnlockTime"]
 
-DELETE_ATTRS = ["ds6ruv","mailHost","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
-DELETE_ATTRS2 = ["groupOfUniqueNames"]
+# anscheinend nicht mehr im Schema existente ehemals operational Attribute
+DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
+# anscheinend nicht mehr im Schema existente eigene Attribute
+DELETE_ATTRS2  = ["dthostnamemode","dtsetshadowattributes"]
+# unklar ob zu löschende Attribute
+DELETE_ATTRS3 = []
+#DELETE_ATTRS3 = ["groupOfUniqueNames","mailHost"]
 
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute#
@@ -25,7 +32,8 @@ DELETE_ATTRS2 = ["groupOfUniqueNames"]
 # Falls oC existiert aber musthave-Attribut(E) nicht, dann füge letztere mit Dummy-Values hinzu
 # Wenn 
 
-OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")] }
+OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")],
+                       "groupofuniquenames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")] }
 
 
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
@@ -54,7 +62,7 @@ def getOperationals():
     return OPERATIONAL_ATTRS + OPERATIONAL_ATTRS2
 
 def getAttributesToBeDeleted():
-    return DELETE_ATTRS + DELETE_ATTRS2
+    return DELETE_ATTRS + DELETE_ATTRS2 + DELETE_ATTRS3
 
 def getStructurals():
     '''
@@ -199,8 +207,13 @@ def deleteEmptyAttributes(entry):
     '''
     changed = dict(entry)
     for k,v in entry.items():
-        if [""] == v:	# FAST equivalent if entry[k] == [] (aber auch Existenz eines NULL Listenelementes
+        changed[k] = [x for x in v if x != ""]
+#    print("Nach entfernen von ''", changed, "\n")
+    entry = dict(changed)
+    for k,v in entry.items():
+        if not v:	# nahezu equivalent if entry[k] == [] (aber auch Existenz eines NULL Listenelementes
             del changed[k]
+#    print("nach entfernen von unnützen attributen", changed, "\n")
     return changed
 
 def reencode(self, dn,entry,debug):
@@ -258,10 +271,10 @@ class StructuralLDIFParser(LDIFParser):
 
         # löscht weitere (operational, aber nicht DSEE spezifische) Attribute wie groupOfUniqueNames
         entry = deleteOperationalAttributes(entry, getAttributesToBeDeleted())
-
+#        print("Vor sanitize:",entry, "\n")
         # ergänzt falls musthave Attribute fehlen das Attribut mit DummyValue 
         entry = sanitizeObjectClasses(entry, OC_ATTR_DEPENDENCY) 
-
+#        print("nach sanitzie:", entry, "\n")
         # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
         if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
             self.addMissingStructural(dn, entry)
