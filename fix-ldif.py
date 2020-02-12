@@ -16,7 +16,7 @@ DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 # bekannt serverübergreifen operationale Parameter
 OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
 # anscheinend DSEE-proprietäre operationale Parameter
-OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","passwordAllowChangeTime","accountUnlockTime"]
+OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","passwordAllowChangeTime","pwdHistory","accountUnlockTime","passwordExpirationTime","retryCountResetTime"]
 
 # anscheinend nicht mehr im Schema existente ehemals operational Attribute
 DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
