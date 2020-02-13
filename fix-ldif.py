@@ -1,7 +1,12 @@
 #! /usr/bin/python3
 
 from ldif import LDIFParser, LDIFWriter
+from unidecode import unidecode
 import sys,os,getopt,ldap
+
+
+# bei Bedarf für entsprechende Ausgaben
+DEBUG = False
 
 
 URI = "ldap://25.16.128.69:3389/"
@@ -13,8 +18,8 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
-# bekannt serverübergreifen operationale Parameter
-OPERATIONAL_ATTRS  = ["aci","st","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
+# bekannt serverübergreifend operationale Parameter
+OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
 # anscheinend DSEE-proprietäre operationale Parameter
 OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","passwordAllowChangeTime","pwdHistory","accountUnlockTime","passwordExpirationTime","retryCountResetTime"]
 
@@ -24,13 +29,11 @@ DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParen
 DELETE_ATTRS2  = ["dthostnamemode","dtsetshadowattributes"]
 # unklar ob zu löschende Attribute
 DELETE_ATTRS3 = []
-#DELETE_ATTRS3 = ["groupOfUniqueNames","mailHost"]
 
 
-# Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute#
-# besodners schwierig bei operational Attributen wie groupOfUniqueNames
-# Falls oC existiert aber musthave-Attribut(E) nicht, dann füge letztere mit Dummy-Values hinzu
-# Wenn 
+# Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
+# besodners schwierig bei operational Attributen wie z.B. groupOfUniqueNames
+# Falls oC existiert aber musthave-Attribut(e) nicht, dann füge letztere(s) mit Dummy-Value(s) hinzu
 
 OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")],
                        "groupofuniquenames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")] }
@@ -132,7 +135,7 @@ def compareClasses(entry, classes):
 def sanitizeObjectClasses(entry, dependencies):
     """
     prüft ob zu bestimmten objectClasses gehörige Attribute vorhanden sind (Liste als "dependencies" übergeben)
-    löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und ruft sanitizeEntry auf, um ein dummy-Attribut zu setzen
+    löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und setzt ein dummy-Attribut
     """
     for oC in entry["objectClass"]:
         if oC in dependencies: # Wir wollen für diese Objectclass oC alle dependencies überprüfen
@@ -145,6 +148,45 @@ def sanitizeObjectClasses(entry, dependencies):
                     entry[attribute] = [value] # fügt dem dict neuen Eintrag mit key = Attributs-Name und value = dummy hinzu
     return entry
 
+
+sanitizeCases = { "destinationIndicator" : sanitizeDestInd, "gecos" = sanitizeGecos }
+
+def sanitizeDestInd():
+    """
+    löscht "%" aus dem Wert eines Attributes destinationIndicator
+    """	
+    attr = []
+    for k in entry["destinationIndicator"]:
+        attr += k.replace("%", "")
+    return attr
+
+
+def sanitizeGecos():
+    """
+    konvertiert non-ASCII-Character im Wert eines Attributes gecos
+    unidecode Library übersetzt nach allen, nur nicht nach deutschen Regeln, weil z.B. Ä in anderen Sprachen ein eigener Buchstabe ist
+    """	
+
+    international = { ord('é'):'e', ord('è'):'e', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ß'):'ss' }
+    diacritics = { ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('Ä'):'Ae', ord('Ö'):'Oe', ord('Ü'):'Ue', ord('ß'):'ss' }
+    
+    attr = []
+    for k in entry["gecos"]:
+#        attr += k.translate(international)
+        attr += unidecode(k.translate(diacritics))
+    return attr
+
+
+
+def sanitizeEntry(entry):
+    """
+    prüft ob alle Attribute eines Entrys in einer Liste von bekannten Fehlerfällen auftaucht und löscht/ersetzt ggfs. Character
+    Kann man sicherlich (mit wesentlich mehr Aufwand) generalisieren, hier beschränkt sich die Behandlung auf eine
+    hard-kodierte Logik abhängig vom Attribut, um "bekannte" Fehlerfälle zu korrigieren
+    """
+    for a in entry.keys():
+        entry[a] = eval(sanitizeCases[a])
+    return entry
 
 
 def splitClasses(entry, classesToInspect):
@@ -180,7 +222,7 @@ def modifyAttributeNames(func, entry):
     '''
     Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Attributnamen im Entry an
     um z.B. serverspezifische Daten wie z.B. "objectClass;vucsn-5d5b850f000000cb0000: dtPasswordManagement"
-    in allgemeingültige zu konvertieren.
+    in allgemeingültige (ohne CSN etc) zu konvertieren.
     '''
     changed = dict(entry)
     for k in entry.keys():
@@ -203,17 +245,15 @@ def deleteOperationalAttributes(entry, operational_attributes):
 
 def deleteEmptyAttributes(entry):
     '''
-    Nimmt einen Entry entgegen und löscht alle Attribute, die kein value haben (bzw. von der Form "attribut;.....;deleted:" sind)
+    Nimmt einen Entry entgegen und löscht alle Attribute, die kein value haben (bzw. z.B. von der Form "attribut;.....;deleted:" sind)
     '''
     changed = dict(entry)
     for k,v in entry.items():
         changed[k] = [x for x in v if x != ""]
-#    print("Nach entfernen von ''", changed, "\n")
     entry = dict(changed)
     for k,v in entry.items():
-        if not v:	# nahezu equivalent if entry[k] == [] (aber auch Existenz eines NULL Listenelementes
+        if not v:
             del changed[k]
-#    print("nach entfernen von unnützen attributen", changed, "\n")
     return changed
 
 def reencode(self, dn,entry,debug):
@@ -256,25 +296,36 @@ class StructuralLDIFParser(LDIFParser):
         parset alle Entries im inputFile
         '''
         self.count+=1
-        #Konvertiert alle Objektattributseinträge zu Strings damit Stringoperationen normal durchgeführt werden können
+        # Konvertiert alle Objektattributseinträge von byte arrays zu Strings damit Stringoperationen normal durchgeführt werden können
+        if DEBUG: print("vor decode:",entry,"\n")
         modifyEntryValues(lambda x: x.decode(), entry)
 
+
         # bedient sich austauschbarer Funktion (hier: löscht CSN aus Attributensname)
+        if DEBUG: print("vor modifyAttributeNames:",entry,"\n")
         entry = modifyAttributeNames(deleteCSN, entry)
 
         # löscht leere Attribute (können von der Form "attribut;.....;deleted:" sein)
+        if DEBUG: print("vor deleteEmptyAttributes:",entry,"\n")
         entry = deleteEmptyAttributes(entry)
 
         # löscht operational Attribute des DSEE
-        # wichtig: erst NACH Vereinheitlichung des Attributnamens
+        # wichtig: erst NACH Vereinheitlichung des Attributnamens aufrufen
+        if DEBUG: print("vor delete operational:",entry,"\n")
         entry = deleteOperationalAttributes(entry, getOperationals())
 
-        # löscht weitere (operational, aber nicht DSEE spezifische) Attribute wie groupOfUniqueNames
+        # löscht weitere (operational, aber nicht DSEE-spezifische) Attribute
+        if DEBUG: print("nach delete operational:",entry,"\n")
         entry = deleteOperationalAttributes(entry, getAttributesToBeDeleted())
-#        print("Vor sanitize:",entry, "\n")
+
+        # bereinigt Attributswerte gemäß hardkodierter Logik
+        if DEBUG: print("vor sanitizeEntry:",entry,"\n")
+        entry = sanitizeEntry(entry)
+
         # ergänzt falls musthave Attribute fehlen das Attribut mit DummyValue 
         entry = sanitizeObjectClasses(entry, OC_ATTR_DEPENDENCY) 
-#        print("nach sanitzie:", entry, "\n")
+        if DEBUG: print("nach sanitize:", entry,"\n")
+
         # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
         if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
             self.addMissingStructural(dn, entry)
