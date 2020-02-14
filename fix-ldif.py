@@ -149,17 +149,20 @@ def sanitizeObjectClasses(entry, dependencies):
     return entry
 
 
-def sanitizeDestInd(entry):
+def sanitizeDestInd(dn,entry,self):
     """
     löscht "%" aus dem Wert eines Attributes destinationIndicator
     """	
     attr = ""
     for k in entry["destinationIndicator"]:
-        attr += k.replace("%", "")
+        a = k.replace("%", "")
+        attr += a
+        if a != k:
+            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurde das '%' aus dem Attribut destinationIndicator entfernt: {}\n".format(dn, a, k))
     return attr
 
 
-def sanitizeGecos(entry):
+def sanitizeGecos(dn,entry,self):
     """
     konvertiert non-ASCII-Character im Wert eines Attributes gecos
     unidecode Library übersetzt nach allen, nur nicht nach deutschen Regeln, weil z.B. Ä in anderen Sprachen ein eigener Buchstabe ist
@@ -170,9 +173,9 @@ def sanitizeGecos(entry):
     
     attr = ""
     for k in entry["gecos"]:
-#        attr += k.translate(international)
         a = unidecode(k.translate(diacritics))
-        print("k = {}, a = {}\n".format(k,a))
+        if a != k:
+            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurde der Zeichensatz des gecos-Attributes von \"{}\" auf \"{}\" korrigiert\n".format(dn, a, k))
         attr += a 
     return attr
 
@@ -186,15 +189,10 @@ def sanitizeEntry(dn, entry, self):
     Kann man sicherlich (mit wesentlich mehr Aufwand) generalisieren, hier beschränkt sich die Behandlung auf eine
     hard-kodierte Logik abhängig vom Attribut, um "bekannte" Fehlerfälle zu korrigieren
     """
-#    print(entry,"\n")
     for a in entry.keys():
-#        print("index: ",a)
         if a in sanitizeCases:
             sanitizer = sanitizeCases[a]
-            print("Rufe sanitizer {} für Attribut {} Wert {} auf,".format(sanitizer, a, entry[a]))
-            self.logger.write("[SANITIZE] Bei dn={} wurde sanitizer {} auf Attribut {}: {} angewendet.\n".format(dn,sanitizer, a, entry[a]))
-            entry[a] = [sanitizer(entry)]
-            print("sanitizer {} liefert {} zurück, a={}".format(sanitizer, a, entry[a],a))
+            entry[a] = [sanitizer(dn,entry,self)]
     return entry
 
 
