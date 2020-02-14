@@ -21,7 +21,7 @@ DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 # bekannt serverübergreifend operationale Parameter
 OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
 # anscheinend DSEE-proprietäre operationale Parameter
-OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","passwordAllowChangeTime","pwdHistory","accountUnlockTime","passwordExpirationTime","retryCountResetTime"]
+OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","accountUnlockTime","passwordExpirationTime","retryCountResetTime"]
 
 # anscheinend nicht mehr im Schema existente ehemals operational Attribute
 DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
@@ -33,18 +33,20 @@ DELETE_ATTRS3 = []
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
 # besonders schwierig bei operational Attributen wie z.B. groupOfUniqueNames
-# Falls oC existiert aber musthave-Attribut(e) nicht, dann füge letztere(s) mit Dummy-Value(s) hinzu
-# Achtung, Prozessierung ist case sensitiv da er sich auf die Attributs*value*s bezieht; ggfs. mehrere Einträge verwenden
-OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")],
-                       "groupofuniquenames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")] }
+# Falls eine oC (Dict-Key) existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht, dann füge
+# dieses Attribute letztere(s) mit einem Dummy-Value (2. Wert des Tupels, wenn nicht leer) hinzu
+# oder lösche die oC (wenn 2. Wert des Tupels leer)
+# Achtung, Prozessierung ist case sensitiv da er sich auf die Attributs*value*s bezieht; daher ggfs. mehrere Einträge verwenden
 
+OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
+                       "groupofuniquenames" : [("uniqueMember", "dummyMember")] }
+#OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "")],
+#                       "groupofuniquenames" : [("uniqueMember", "")] }
 
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
 # (für inetOrPerson,organizationalPerson scheint es keine Einträge zu geben)
 # person => MAY (sn $ cn )
 # nisNetgroup => MAY ( nisNetgroupTriple $ memberNisNetgroup $ description )
-# WAS GILT für device ? wg STRUCTURAL Ableitung von TSIdevice aus device bleiben MUS+MAY dafür erhalten
-# wurde TSIdevice schon in Schema gegossen?
 STRUCTURAL_OBJECTCLASS_MAPPING = {
     ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
     ("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"],
@@ -55,6 +57,9 @@ STRUCTURAL_OBJECTCLASS_MAPPING = {
 }
 
 
+def normalizeStringCaseless(text):
+    return unicodedata.normalize("NFKD", text.casefold())
+
 
 def usage():
     print("{} -i <inputfile> -o <outputfile> -l <logfile>'".format(os.path.basename(__file__)))
@@ -64,13 +69,15 @@ def usage():
 def getOperationals():
     return OPERATIONAL_ATTRS + OPERATIONAL_ATTRS2
 
+
 def getAttributesToBeDeleted():
     return DELETE_ATTRS + DELETE_ATTRS2 + DELETE_ATTRS3
 
+
 def getStructurals():
-    '''
+    """
     Liest aus dem Schema eines LDAP-Servers alle STRUCTURAL objectClasses aus
-    '''
+    """
     con = ldap.initialize(URI)
     with open(PASSWD_FILE,mode="r") as passfile:
         bindpw=passfile.readline()
@@ -100,7 +107,7 @@ def getStructurals():
         for oc in schemafile[1]["olcObjectClasses"]:
             s = str(oc)
             if "STRUCTURAL" in s:
-                struct+=1
+                struct += 1
                 l = s.replace("'","").split(" ")
                 for i in range(len(l)):
                     if l[i] == "NAME":
@@ -110,10 +117,10 @@ def getStructurals():
                         else:
                             out.append("{}".format(l[i+1]))
             elif "AUXILIARY" in str(oc):
-                aux+=1
+                aux += 1
             elif "ABSTRACT" in str(oc):
-                abstract+=1
-            count+=1
+                abstract += 1
+            count += 1
 
     print("structural/abstract/auxiliary = {}/{}/{} of {} entries".format(struct,abstract,aux,count))
     return sorted(out,key=lambda x:x.lower())
@@ -122,23 +129,20 @@ def getStructurals():
 def sharedClasses(entry, classes):
     return compareClasses(entry,classes).count(True)
 
+
 def compareClasses(entry, classes):
-    '''
+    """
     Prüft für alle Elemente einer Liste von Klassen ob ein entry ein Objekt dieser Klasse ist (case-insensitive)
-    '''
+    """
     try:
         return [(x.casefold() in [o.casefold() for o in entry["objectClass"]]) for x in classes]
     except KeyError:
         return []
 
 
-def normalizeStringCaseless(text):
-    return unicodedata.normalize("NFKD", text.casefold())
-
-
-def sanitizeObjectClasses(entry, dependencies):
+def sanitizeObjectClasses(dn, entry, dependencies, self):
     """
-    prüft ob zu bestimmten objectClasses gehörige Attribute vorhanden sind (Liste als "dependencies" übergeben)
+    prüft ob zu bestimmten objectClasses gehörige (must-)Attribute vorhanden sind (Liste als "dependencies" übergeben)
     löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und setzt ein dummy-Attribut
     """
     for oC in entry["objectClass"]:
@@ -146,10 +150,12 @@ def sanitizeObjectClasses(entry, dependencies):
             l = [d[0] not in entry for d in dependencies[oC]]
             if all(l):
                 entry["objectClass"].remove(oC)
+                self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde die oC {} gelöscht, weil die zugehörigen must-Attribute fehlen.\n".format(dn, oC))
                 break
             for attribute, value in dependencies[oC]: 
                 if attribute not in entry:
                     entry[attribute] = [value] # fügt dem dict neuen Eintrag mit key = Attributs-Name und value = dummy hinzu
+                    self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde dummy {}: {} ergänzt, weil es ein must-Attribut der objectClass {} ist, aber fehlte.\n".format(dn, attribute, value, oC))
     return entry
 
 
@@ -185,8 +191,6 @@ def sanitizePrintableStringSyntax(dn,entry,attr,self):
         for i in range(len(k)):
             if k[i] in PrintableString:
                 a += k[i]
-#            else:
-#                print("Lösche {} aus {}".format(k[i],k))
         ret += a
         if a != k:
             self.logger.write("[SANITIZE PrintableString] Bei dn=\"{}\" ergab das Matching von \"{}: {}\" gegen PrintableString \"{}\"\n".format(dn, attr, k, a))
@@ -210,8 +214,7 @@ def sanitizeCharset(dn,entry,attr,self):
     return ret
 
 
-
-sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax }
+sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax }
 
 def sanitizeEntry(dn, entry, self):
     """
@@ -334,7 +337,7 @@ class StructuralLDIFParser(LDIFParser):
         '''
         self.count+=1
         # Konvertiert alle Objektattributseinträge von byte arrays zu Strings damit Stringoperationen normal durchgeführt werden können
-        if DEBUG: print("vor decode:",entry,"\n")
+        if DEBUG: print("vor Decoding byte arrays nach Strings:", entry,"\n")
         modifyEntryValues(lambda x: x.decode(), entry)
 
 
@@ -360,17 +363,21 @@ class StructuralLDIFParser(LDIFParser):
         entry = sanitizeEntry(dn, entry, self)
 
         # ergänzt falls musthave Attribute fehlen das Attribut mit DummyValue 
-        entry = sanitizeObjectClasses(entry, OC_ATTR_DEPENDENCY) 
-        if DEBUG: print("nach sanitize:", entry,"\n")
+        if DEBUG: print("vor sanitizeObjectClasses:", entry,"\n")
+        entry = sanitizeObjectClasses(dn, entry, OC_ATTR_DEPENDENCY, self)
 
         # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
+        # muss NACH sanitizeObjectClasses laufen, da dortdrin ggfs. die letzte STRUCTURAL Klasse gelöscht wird
+        if DEBUG: print("vor addMissingStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
             self.addMissingStructural(dn, entry)
         # ersetzt 2 STRUCTURAL objectClasses durch 2 andere (siehe Mapping in STRUCTURAL_OBJECTCLASS_MAPPING)
+        if DEBUG: print("vor reduceMultipleStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) == 2):
             self.reduceMultipleStructural(dn, entry)
 
-        #Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
+        # Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
+        if DEBUG: print("vor Re-Encoding Strings nach bytes:", entry,"\n")
         modifyEntryValues(lambda x: x.encode("utf-8"), entry)
 
         try:
