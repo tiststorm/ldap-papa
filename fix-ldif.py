@@ -35,13 +35,13 @@ DELETE_ATTRS3 = []
 # besonders schwierig bei operational Attributen wie z.B. groupOfUniqueNames
 # Falls eine oC (Dict-Key) existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht, dann füge
 # dieses Attribute letztere(s) mit einem Dummy-Value (2. Wert des Tupels, wenn nicht leer) hinzu
-# oder lösche die oC (wenn 2. Wert des Tupels leer)
 # Achtung, Prozessierung ist case sensitiv da er sich auf die Attributs*value*s bezieht; daher ggfs. mehrere Einträge verwenden
 
 OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
                        "groupofuniquenames" : [("uniqueMember", "dummyMember")] }
-#OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "")],
-#                       "groupofuniquenames" : [("uniqueMember", "")] }
+# als Testfall
+#OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory", "dummyCategory")],
+#                       "groupofuniquenames" : [("uniqueMember", "dummyMember"),("businessCategory", "dummyCategory")] }
 
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
 # (für inetOrPerson,organizationalPerson scheint es keine Einträge zu geben)
@@ -214,7 +214,7 @@ def sanitizeCharset(dn,entry,attr,self):
     return ret
 
 
-sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax }
+sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax }
 
 def sanitizeEntry(dn, entry, self):
     """
