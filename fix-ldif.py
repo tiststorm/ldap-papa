@@ -21,7 +21,7 @@ DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 # bekannt serverübergreifend operationale Parameter
 OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
 # anscheinend DSEE-proprietäre operationale Parameter
-OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","accountUnlockTime","passwordExpirationTime","retryCountResetTime"]
+OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","passwordHistory","accountUnlockTime","passwordExpirationTime","pwdGraceUseTime","retryCountResetTime"]
 
 # anscheinend nicht mehr im Schema existente ehemals operational Attribute
 DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
@@ -214,7 +214,7 @@ def sanitizeCharset(dn,entry,attr,self):
     return ret
 
 
-sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax }
+sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax, "localHome":sanitizeBooleanSyntax, "tivoliActive":sanitizeBooleanSyntax, "TLScheckPeer":sanitizeBooleanSyntax, "DSImanaged":sanitizeBooleanSyntax }
 
 def sanitizeEntry(dn, entry, self):
     """
