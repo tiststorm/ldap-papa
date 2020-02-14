@@ -32,9 +32,9 @@ DELETE_ATTRS3 = []
 
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
-# besodners schwierig bei operational Attributen wie z.B. groupOfUniqueNames
+# besonders schwierig bei operational Attributen wie z.B. groupOfUniqueNames
 # Falls oC existiert aber musthave-Attribut(e) nicht, dann füge letztere(s) mit Dummy-Value(s) hinzu
-
+# Achtung, Prozessierung ist case sensitiv da er sich auf die Attributs*value*s bezieht; ggfs. mehrere Einträge verwenden
 OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")],
                        "groupofuniquenames" : [("uniqueMember", "dummyMember"),("businessCategory","dummyCategory")] }
 
@@ -149,9 +149,7 @@ def sanitizeObjectClasses(entry, dependencies):
     return entry
 
 
-sanitizeCases = { "destinationIndicator" : sanitizeDestInd, "gecos" = sanitizeGecos }
-
-def sanitizeDestInd():
+def sanitizeDestInd(entry):
     """
     löscht "%" aus dem Wert eines Attributes destinationIndicator
     """	
@@ -161,7 +159,7 @@ def sanitizeDestInd():
     return attr
 
 
-def sanitizeGecos():
+def sanitizeGecos(entry):
     """
     konvertiert non-ASCII-Character im Wert eines Attributes gecos
     unidecode Library übersetzt nach allen, nur nicht nach deutschen Regeln, weil z.B. Ä in anderen Sprachen ein eigener Buchstabe ist
@@ -173,19 +171,29 @@ def sanitizeGecos():
     attr = []
     for k in entry["gecos"]:
 #        attr += k.translate(international)
-        attr += unidecode(k.translate(diacritics))
+        a = unidecode(k.translate(diacritics))
+        print("k = {}, a = {}\n".format(k,a))
+        attr += a
     return attr
 
 
 
-def sanitizeEntry(entry):
+sanitizeCases = { "destinationIndicator":sanitizeDestInd, "gecos":sanitizeGecos }
+
+def sanitizeEntry(dn, entry, self):
     """
     prüft ob alle Attribute eines Entrys in einer Liste von bekannten Fehlerfällen auftaucht und löscht/ersetzt ggfs. Character
     Kann man sicherlich (mit wesentlich mehr Aufwand) generalisieren, hier beschränkt sich die Behandlung auf eine
     hard-kodierte Logik abhängig vom Attribut, um "bekannte" Fehlerfälle zu korrigieren
     """
+#    print(entry,"\n")
     for a in entry.keys():
-        entry[a] = eval(sanitizeCases[a])
+#        print("index: ",a)
+        if a in sanitizeCases:
+            sanitizer = sanitizeCases[a]
+            print("Rufe sanitizer {} für Attribut {} Wert {} auf,".format(sanitizer, a, entry[a]))
+            self.logger.write("[SANITIZE] Bei dn={} wurde sanitizer {} auf Attribut {}: {} angewendet.\n".format(dn,sanitizer, a, entry[a]))
+            entry[a] = sanitizer(entry)
     return entry
 
 
@@ -320,7 +328,7 @@ class StructuralLDIFParser(LDIFParser):
 
         # bereinigt Attributswerte gemäß hardkodierter Logik
         if DEBUG: print("vor sanitizeEntry:",entry,"\n")
-        entry = sanitizeEntry(entry)
+        entry = sanitizeEntry(dn, entry, self)
 
         # ergänzt falls musthave Attribute fehlen das Attribut mit DummyValue 
         entry = sanitizeObjectClasses(entry, OC_ATTR_DEPENDENCY) 
