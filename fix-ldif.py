@@ -153,7 +153,7 @@ def sanitizeDestInd(entry):
     """
     löscht "%" aus dem Wert eines Attributes destinationIndicator
     """	
-    attr = []
+    attr = ""
     for k in entry["destinationIndicator"]:
         attr += k.replace("%", "")
     return attr
@@ -168,12 +168,12 @@ def sanitizeGecos(entry):
     international = { ord('é'):'e', ord('è'):'e', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ß'):'ss' }
     diacritics = { ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('Ä'):'Ae', ord('Ö'):'Oe', ord('Ü'):'Ue', ord('ß'):'ss' }
     
-    attr = []
+    attr = ""
     for k in entry["gecos"]:
 #        attr += k.translate(international)
         a = unidecode(k.translate(diacritics))
         print("k = {}, a = {}\n".format(k,a))
-        attr += a
+        attr += a 
     return attr
 
 
@@ -193,7 +193,8 @@ def sanitizeEntry(dn, entry, self):
             sanitizer = sanitizeCases[a]
             print("Rufe sanitizer {} für Attribut {} Wert {} auf,".format(sanitizer, a, entry[a]))
             self.logger.write("[SANITIZE] Bei dn={} wurde sanitizer {} auf Attribut {}: {} angewendet.\n".format(dn,sanitizer, a, entry[a]))
-            entry[a] = sanitizer(entry)
+            entry[a] = [sanitizer(entry)]
+            print("sanitizer {} liefert {} zurück, a={}".format(sanitizer, a, entry[a],a))
     return entry
 
 
