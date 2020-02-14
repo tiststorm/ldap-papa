@@ -149,39 +149,53 @@ def sanitizeObjectClasses(entry, dependencies):
     return entry
 
 
-def sanitizeDestInd(dn,entry,self):
+def sanitizeBooleanSyntax(dn,entry,attr,self):
     """
-    löscht "%" aus dem Wert eines Attributes destinationIndicator
+    korrigiert Wert eines Attributes vom Typ Boolean wie z.B. HPSAagent
     """	
-    attr = ""
-    for k in entry["destinationIndicator"]:
+    ret = ""
+    for k in entry[attr]:
         a = k.replace("%", "")
-        attr += a
+        ret += a
         if a != k:
-            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurde das '%' aus dem Attribut destinationIndicator entfernt: {}\n".format(dn, a, k))
-    return attr
+            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurde das '%' aus dem Attribut destinationIndicator entfernt: \"{}\" => \"{}\"\n".format(dn, a, k))
+    return ret
 
 
-def sanitizeGecos(dn,entry,self):
+def sanitizePrintableStringSyntax(dn,entry,attr,self):
     """
-    konvertiert non-ASCII-Character im Wert eines Attributes gecos
+    löscht "%" aus dem Wert eines Attributes vom Typ PrintableString wie z.B. destinationIndicator
+    """	
+    ret = ""
+#    for k in entry["destinationIndicator"]:
+    for k in entry[attr]:
+        a = k.replace("%", "")
+        ret += a
+        if a != k:
+            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurde das '%' aus dem Attribut {} entfernt: \"{}\" => \"{}\"\n".format(dn, attr, a, k))
+    return ret
+
+
+def sanitizeCharset(dn,entry,attr,self):
+    """
+    konvertiert non-UTF-8-Character im Wert eines Attributes
     unidecode Library übersetzt nach allen, nur nicht nach deutschen Regeln, weil z.B. Ä in anderen Sprachen ein eigener Buchstabe ist
     """	
 
-    international = { ord('é'):'e', ord('è'):'e', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ß'):'ss' }
+#    international = { ord('é'):'e', ord('è'):'e', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ß'):'ss' }
     diacritics = { ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('Ä'):'Ae', ord('Ö'):'Oe', ord('Ü'):'Ue', ord('ß'):'ss' }
     
-    attr = ""
-    for k in entry["gecos"]:
+    ret = ""
+    for k in entry[attr]:
         a = unidecode(k.translate(diacritics))
         if a != k:
-            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurde der Zeichensatz des gecos-Attributes von \"{}\" auf \"{}\" korrigiert\n".format(dn, a, k))
-        attr += a 
-    return attr
+            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurden Zeichensatzfehler im Attribut \"{}\" von \"{}\" auf \"{}\" korrigiert\n".format(dn, attr, k, a))
+        ret += a 
+    return ret
 
 
 
-sanitizeCases = { "destinationIndicator":sanitizeDestInd, "gecos":sanitizeGecos }
+sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "loginShell":sanitizeCharset, "HPSAagent":sanitizeBoolSyntax, "HPOAactive":sanitizeBoolSyntax }
 
 def sanitizeEntry(dn, entry, self):
     """
@@ -192,7 +206,7 @@ def sanitizeEntry(dn, entry, self):
     for a in entry.keys():
         if a in sanitizeCases:
             sanitizer = sanitizeCases[a]
-            entry[a] = [sanitizer(dn,entry,self)]
+            entry[a] = [sanitizer(dn,entry,a,self)]
     return entry
 
 
