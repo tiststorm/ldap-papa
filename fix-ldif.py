@@ -216,7 +216,7 @@ def sanitizeCharset(dn,entry,attr,self):
     return ret
 
 
-sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax, "localHome":sanitizeBooleanSyntax, "tivoliActive":sanitizeBooleanSyntax, "TLScheckPeer":sanitizeBooleanSyntax, "DSImanaged":sanitizeBooleanSyntax, "arInvalid":sanitizeBooleanSyntax, "TivoliActive":sanitizeBooleanSyntax, "rwRootFileSystem":sanitizeBooleanSyntax, "dtCheckForExternalUid":sanitizeBooleanSyntax }
+sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax, "localHome":sanitizeBooleanSyntax, "tivoliActive":sanitizeBooleanSyntax, "TLScheckPeer":sanitizeBooleanSyntax, "DSImanaged":sanitizeBooleanSyntax, "arInvalid":sanitizeBooleanSyntax, "TivoliActive":sanitizeBooleanSyntax, "rwRootFileSystem":sanitizeBooleanSyntax, "dtCheckForExternalUid":sanitizeBooleanSyntax, "ADCtrl":sanitizeBooleanSyntax }
 
 def sanitizeEntry(dn, entry, self):
     """
