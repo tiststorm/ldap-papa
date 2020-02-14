@@ -37,8 +37,10 @@ DELETE_ATTRS3 = []
 # dieses Attribute letztere(s) mit einem Dummy-Value (2. Wert des Tupels, wenn nicht leer) hinzu
 # Achtung, Prozessierung ist case sensitiv da er sich auf die Attributs*value*s bezieht; daher ggfs. mehrere Einträge verwenden
 
-OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
-                       "groupofuniquenames" : [("uniqueMember", "dummyMember")] }
+OC_ATTR_DEPENDENCY = {
+     "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
+     "groupofuniquenames" : [("uniqueMember", "dummyMember")]
+    }
 # als Testfall
 #OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory", "dummyCategory")],
 #                       "groupofuniquenames" : [("uniqueMember", "dummyMember"),("businessCategory", "dummyCategory")] }
@@ -51,9 +53,9 @@ STRUCTURAL_OBJECTCLASS_MAPPING = {
     ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
     ("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"],
     ("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"],
-    ("device","person") : ["TSIdevice", "dummyAUXILIARY"]
-#    ("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"],
-#    ("applicationProcess","referral") : ["TSIdevice", "dummyAUXILIARY"]
+    ("device","person") : ["TSIdevice", "dummyAUXILIARY"],
+    ("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"],
+    ("applicationProcess","referral") : ["TSIdevice", "dummyAUXILIARY"]
 }
 
 
@@ -214,7 +216,7 @@ def sanitizeCharset(dn,entry,attr,self):
     return ret
 
 
-sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax, "localHome":sanitizeBooleanSyntax, "tivoliActive":sanitizeBooleanSyntax, "TLScheckPeer":sanitizeBooleanSyntax, "DSImanaged":sanitizeBooleanSyntax }
+sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax, "localHome":sanitizeBooleanSyntax, "tivoliActive":sanitizeBooleanSyntax, "TLScheckPeer":sanitizeBooleanSyntax, "DSImanaged":sanitizeBooleanSyntax, "arInvalid":sanitizeBooleanSyntax }
 
 def sanitizeEntry(dn, entry, self):
     """
