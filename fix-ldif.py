@@ -19,7 +19,7 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
 # bekannt serverübergreifend operationale Parameter
-OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry"]
+OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry","ref"]
 # anscheinend DSEE-proprietäre operationale Parameter
 OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","passwordHistory","accountUnlockTime","passwordExpirationTime","pwdGraceUseTime","retryCountResetTime"]
 
