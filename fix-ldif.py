@@ -2,7 +2,7 @@
 
 from ldif import LDIFParser, LDIFWriter
 from unidecode import unidecode
-import sys,os,getopt,ldap
+import sys,os,getopt,ldap,string,unicodedata
 
 
 # bei Bedarf für entsprechende Ausgaben
@@ -132,6 +132,10 @@ def compareClasses(entry, classes):
         return []
 
 
+def normalizeStringCaseless(text):
+    return unicodedata.normalize("NFKD", text.casefold())
+
+
 def sanitizeObjectClasses(entry, dependencies):
     """
     prüft ob zu bestimmten objectClasses gehörige Attribute vorhanden sind (Liste als "dependencies" übergeben)
@@ -153,26 +157,39 @@ def sanitizeBooleanSyntax(dn,entry,attr,self):
     """
     korrigiert Wert eines Attributes vom Typ Boolean wie z.B. HPSAagent
     """	
+
+    TRUE="true"; FALSE = "false"
     ret = ""
     for k in entry[attr]:
-        a = k.replace("%", "")
-        ret += a
-        if a != k:
-            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurde das '%' aus dem Attribut destinationIndicator entfernt: \"{}\" => \"{}\"\n".format(dn, a, k))
+        b = normalizeStringCaseless(k)
+        if b == TRUE:
+            ret += TRUE
+        elif b == FALSE:
+            ret += FALSE
+        if b != k:
+            self.logger.write("[SANITIZE BOOLEAN] Bei dn=\"{}\" wurde der Boolean-Wert des Attributes {} korrigiert: \"{}\" => \"{}\"\n".format(dn, attr, k, b))
     return ret
 
 
+PrintableStringExtraChars = [ " ","'","(",")","+",",","-",".","/",":","=","?" ]	# laut ASN1
+PrintableString = list(string.ascii_lowercase) + list(string.ascii_uppercase) + list(range(1,10)) + PrintableStringExtraChars
+
 def sanitizePrintableStringSyntax(dn,entry,attr,self):
     """
-    löscht "%" aus dem Wert eines Attributes vom Typ PrintableString wie z.B. destinationIndicator
+    löscht Character aus dem Wert eines Attributes, die nicht der PrintableString Syntax entsprechen
+    wie z.B. '%' aus destinationIndicator
     """	
     ret = ""
-#    for k in entry["destinationIndicator"]:
     for k in entry[attr]:
-        a = k.replace("%", "")
+        a = ""
+        for i in range(len(k)):
+            if k[i] in PrintableString:
+                a += k[i]
+            else:
+                print("Lösche {} aus {}".format(k[i],k))
         ret += a
         if a != k:
-            self.logger.write("[SANITIZE] Bei dn=\"{}\" wurde das '%' aus dem Attribut {} entfernt: \"{}\" => \"{}\"\n".format(dn, attr, a, k))
+            self.logger.write("[SANITIZE PrintableString] Bei dn=\"{}\" ergab das Matching von \"{}: {}\" gegen PrintableString \"{}\"\n".format(dn, attr, k, a))
     return ret
 
 
@@ -181,7 +198,6 @@ def sanitizeCharset(dn,entry,attr,self):
     konvertiert non-UTF-8-Character im Wert eines Attributes
     unidecode Library übersetzt nach allen, nur nicht nach deutschen Regeln, weil z.B. Ä in anderen Sprachen ein eigener Buchstabe ist
     """	
-
 #    international = { ord('é'):'e', ord('è'):'e', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('ó'):'o', ord('ò'):'o', ord('á'):'a', ord('à'):'a', ord('â'):'a', ord('ß'):'ss' }
     diacritics = { ord('ä'):'ae', ord('ö'):'oe', ord('ü'):'ue', ord('Ä'):'Ae', ord('Ö'):'Oe', ord('Ü'):'Ue', ord('ß'):'ss' }
     
@@ -195,7 +211,7 @@ def sanitizeCharset(dn,entry,attr,self):
 
 
 
-sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "loginShell":sanitizeCharset, "HPSAagent":sanitizeBoolSyntax, "HPOAactive":sanitizeBoolSyntax }
+sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax }
 
 def sanitizeEntry(dn, entry, self):
     """
@@ -432,6 +448,7 @@ with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfil
     parser = StructuralLDIFParser(inFile, outFile, logFile)
     print("------------------------------------------------------------------------------------------------------------------")
     parser.parse()
+    print("\n")
 #    print("------------------------------------------------------------------------------------------------------------------")
 #    print("Alle STRUCTURAL objectClasses:\n{}".format(parser.ALL_STRUCTURALS))
 #    print("------------------------------------------------------------------------------------------------------------------")
