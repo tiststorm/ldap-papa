@@ -158,13 +158,13 @@ def sanitizeBooleanSyntax(dn,entry,attr,self):
     korrigiert Wert eines Attributes vom Typ Boolean wie z.B. HPSAagent
     """	
 
-    TRUE="true"; FALSE = "false"
+    TRUE = "TRUE"; FALSE = "FALSE"
     ret = ""
     for k in entry[attr]:
         b = normalizeStringCaseless(k)
-        if b == TRUE:
+        if b == TRUE.casefold():
             ret += TRUE
-        elif b == FALSE:
+        elif b == FALSE.casefold():
             ret += FALSE
         if b != k:
             self.logger.write("[SANITIZE BOOLEAN] Bei dn=\"{}\" wurde der Boolean-Wert des Attributes {} korrigiert: \"{}\" => \"{}\"\n".format(dn, attr, k, b))
@@ -185,8 +185,8 @@ def sanitizePrintableStringSyntax(dn,entry,attr,self):
         for i in range(len(k)):
             if k[i] in PrintableString:
                 a += k[i]
-            else:
-                print("Lösche {} aus {}".format(k[i],k))
+#            else:
+#                print("Lösche {} aus {}".format(k[i],k))
         ret += a
         if a != k:
             self.logger.write("[SANITIZE PrintableString] Bei dn=\"{}\" ergab das Matching von \"{}: {}\" gegen PrintableString \"{}\"\n".format(dn, attr, k, a))
