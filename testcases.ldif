@@ -149,7 +149,7 @@ uidNumber: 56041
 userPassword: {SSHA}zPUGk7BAa8fCf/HwH2YJ6RlmEXwlC5J7ziR5Jg==
 
 # Error: Invalid syntax (21), additional info: HPSAagent: value #0 invalid per syntax
-dn: cn=HostConfig,dc=36_22_22_0,dc=gs,dc=app
+dn: cn=HostConfig,dc=36_22_22_0,dc=sh,dc=app
 BootGateway: 36.82.22.254
 BootImageShare: /vol/APCBOOT_IMG/APCBOOT_img
 BootImageVersion: sles:10:s10.4.3::s10.4.3
@@ -207,4 +207,22 @@ serviceSearchDescriptor: shadow: ou=people,dc=fus;ou=people,dc=adm
 serviceSearchDescriptor: group: ou=group,dc=fus;ou=group,dc=adm
 serviceSearchDescriptor: hosts:
 serviceSearchDescriptor: services: ou=services,dc=fus;ou=services,dc=adm
+
+# entry-id: 23516
+dn: cn=admingroup_ao,dc=ci,dc=app
+modifyTimestamp;adcsn-5cb5c8f800a100c90002;vucsn-5cb5c8f800a100c90002: 20160906113117Z
+modifiersName;adcsn-5cb5c8f800a100c90001;vucsn-5cb5c8f800a100c90001: cn=manager
+o;vucsn-5cab0f3f00a800c90000: FULL_ACCESS
+o;vucsn-5cb5c8f800a100c90000: VIEWING_ONLY
+businessCategory;vucsn-547c24d7005e00c90000: AOsolution
+ou;vucsn-4f55f81f006800c90001: dt
+seeAlso;vucsn-4f55f81f006800c90000: cn=DT-AO_MANAGEMENT,ou=AbstractRoles,dc=adm
+description;vucsn-4c7283cf001900650000: Admin Group for AO Configuration (ACI)
+cn;vucsn-4c7283cf001900650000;mdcsn-4c7283cf001900650000: admingroup_ao
+owner;vucsn-4c7283cf001900650000: dc=ci,dc=app
+objectClass;vucsn-4c7283cf001900650000: top
+objectClass;vucsn-4c7283cf001900650000: groupofuniquenames
+creatorsName;vucsn-4c7283cf001900650000: cn=jhaust,ou=people,dc=adm
+createTimestamp;vucsn-4c7283cf001900650000: 20100823141621Z
+nsUniqueId: f57d7d3e-aec011df-8043caa4-f2ca5ebc
 
