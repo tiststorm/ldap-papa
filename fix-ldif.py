@@ -11,7 +11,7 @@ DEBUG = False
 
 URI = "ldap://25.16.128.69:3389/"
 BINDDN = "cn=Manager,dc=adm"
-PASSWD_FILE = "/home/admin/mstorm/.p-test"
+PASSWD_FILE = "$HOME/.p-test"
 SCHEMA_DN = "cn=schema,cn=config"
 SCHEMA_FILTER = "(objectclass=olcSchemaConfig)"
 SCHEMA_ATTRS = ["olcObjectClasses"]
@@ -247,9 +247,9 @@ def deleteCSN(value, separator):
     return v
  
 def modifyEntryValues(func, entry):
-    '''
+    """
     Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Values im Entry an
-    '''
+    """
     for k,v in entry.items():
         try:
             entry[k] = list(map(func,v))
@@ -257,11 +257,11 @@ def modifyEntryValues(func, entry):
             pass
 
 def modifyAttributeNames(func, entry):
-    '''
+    """
     Nimmt einen Entry entgegen und wendet die übergebende Funktion func auf alle Attributnamen im Entry an
     um z.B. serverspezifische Daten wie z.B. "objectClass;vucsn-5d5b850f000000cb0000: dtPasswordManagement"
     in allgemeingültige (ohne CSN etc) zu konvertieren.
-    '''
+    """
     changed = dict(entry)
     for k in entry.keys():
         if ";" in k:
@@ -272,9 +272,9 @@ def modifyAttributeNames(func, entry):
     return changed 
 
 def deleteOperationalAttributes(entry, operational_attributes):
-    '''
+    """
     Nimmt einen Entry entgegen und löscht alle Attribute, die in OPERATIONAL_ATTRIBUTES gelistet sind
-    '''
+    """
     changed = dict(entry)
     for k in entry.keys():
         if k in operational_attributes:
@@ -282,9 +282,9 @@ def deleteOperationalAttributes(entry, operational_attributes):
     return changed
 
 def deleteEmptyAttributes(entry):
-    '''
+    """
     Nimmt einen Entry entgegen und löscht alle Attribute, die kein value haben (bzw. z.B. von der Form "attribut;.....;deleted:" sind)
-    '''
+    """
     changed = dict(entry)
     for k,v in entry.items():
         changed[k] = [x for x in v if x != ""]
@@ -295,10 +295,10 @@ def deleteEmptyAttributes(entry):
     return changed
 
 def reencode(self, dn,entry,debug):
-    '''
+    """
     encoded explizit alle verbliebenen str-values eines entry nach bytes
     wird nach einer exception in unparse() aufgerufen, 
-    '''
+    """
     changed = dict(entry)
     if debug: print(dn,entry)
     for k,v in entry.items():
@@ -312,6 +312,7 @@ def reencode(self, dn,entry,debug):
                     print("Korrigiertes    Element",l,"ist",type(changed[k][l]),"value=X",entry[k][l],"X")
                 self.logger.write("[DECODEERROR] Es wurde Element {} = {} bei dn={} erneut encodiert\n".format(l,entry[k][l],dn))
     return changed
+
 
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
@@ -330,9 +331,9 @@ class StructuralLDIFParser(LDIFParser):
         self.ALL_STRUCTURALS = getStructurals()
 
     def handle(self, dn, entry):
-        '''
+        """
         parset alle Entries im inputFile
-        '''
+        """
         self.count+=1
         # Konvertiert alle Objektattributseinträge von byte arrays zu Strings damit Stringoperationen normal durchgeführt werden können
         if DEBUG: print("vor Decoding byte arrays nach Strings:", entry,"\n")
@@ -389,10 +390,10 @@ class StructuralLDIFParser(LDIFParser):
             pass
 
     def addMissingStructural(self, dn, entry):
-        '''
+        """
         Fehlerfall: Record hat kein Structural als Oberklasse
         Es wird ein vordefiniertes Default Structural ergänzt
-        '''
+        """
         try:
             before=set(self.nonStructuralCandidates)
             self.nonStructuralCandidates.update(entry["objectClass"])
@@ -407,10 +408,10 @@ class StructuralLDIFParser(LDIFParser):
             self.logger.write("[NOOC] Es ist gar keine Objectclass bei dn={} vorhanden\n".format(dn))
 
     def reduceMultipleStructural(self, dn, entry):
-        '''
+        """
         Fehlerfall: Record hat mehr als ein Structural als Oberklasse
         Die Nicht-Structural Oberklassen bleiben bestehen, nach einem vordefinierten Mapping werden die Objectclasses modifiziert
-        '''
+        """
         structurals, nonstructurals = splitClasses(entry, self.ALL_STRUCTURALS)
         if tuple(structurals) in STRUCTURAL_OBJECTCLASS_MAPPING:
             self.multipleStructurals+=1
@@ -439,21 +440,9 @@ for opt, arg in opts:
        outputfile = arg
     elif opt in ("-l", "--lfile"):
        logfile  = arg
-#print(inputfile,outputfile, logfile)
 
 with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfile,'w') as logFile:
     parser = StructuralLDIFParser(inFile, outFile, logFile)
     print("------------------------------------------------------------------------------------------------------------------")
     parser.parse()
     print("\n")
-#    print("------------------------------------------------------------------------------------------------------------------")
-#    print("Alle STRUCTURAL objectClasses:\n{}".format(parser.ALL_STRUCTURALS))
-#    print("------------------------------------------------------------------------------------------------------------------")
-#    print("Alle objectClasses, die in Einträgen ohne STRUCTURAL objectClass vorkommen:\n{}".format(parser.nonStructuralCandidates))
-#    print("------------------------------------------------------------------------------------------------------------------")
-
-
-
-# Art und Anzahl Einträge, die keine STRUCTURAL objectClass haben:
-# grep NEWOC /tmp/logfile | cut -d' ' -f11-|sort |uniq -c
-
