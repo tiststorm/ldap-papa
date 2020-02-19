@@ -32,7 +32,6 @@ DELETE_ATTRS3 = []
 
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
-# besonders schwierig bei operational Attributen wie z.B. groupOfUniqueNames
 # Falls eine oC (Dict-Key) existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht, dann füge
 # dieses Attribute letztere(s) mit einem Dummy-Value (2. Wert des Tupels, wenn nicht leer) hinzu
 # Achtung, Prozessierung ist case sensitiv da er sich auf die Attributs*value*s bezieht; daher ggfs. mehrere Einträge verwenden
@@ -41,9 +40,6 @@ OC_ATTR_DEPENDENCY = {
      "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
      "groupofuniquenames" : [("uniqueMember", "dummyMember")]
     }
-# als Testfall
-#OC_ATTR_DEPENDENCY = { "groupOfUniqueNames" : [("uniqueMember", "dummyMember"),("businessCategory", "dummyCategory")],
-#                       "groupofuniquenames" : [("uniqueMember", "dummyMember"),("businessCategory", "dummyCategory")] }
 
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
 # (für inetOrPerson,organizationalPerson scheint es keine Einträge zu geben)
@@ -387,14 +383,6 @@ class StructuralLDIFParser(LDIFParser):
         except Exception:
             # ist das Problem immer das Element[0]?? Haben wir einen off-by-one-Fehler?
             entry = reencode(self, dn, entry, False)
-#            print("--------------------------------------------------------------------------------------------------------------")
-#            entry = reencode(self, dn, entry, True)
-#            print("--------------------------------------------------------------------------------------------------------------")
-#            print("--------------------------------------------------------------------------------------------------------------")
-
-#        except UnicodeDecodeError:
-#            self.decodeError +=1
-#            self.logger.write("[DECODEERROR] UnicodeDecodeError bei dn={}\n{}".format(dn,entry))
 
         finally:
             print("Analysiert: {} Missing Struct: {} Multiple Struct {} De/EncodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
