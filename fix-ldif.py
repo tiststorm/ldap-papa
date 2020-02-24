@@ -48,7 +48,9 @@ OC_ATTR_DEPENDENCY = {
 # nisNetgroup => MAY ( nisNetgroupTriple $ memberNisNetgroup $ description )
 STRUCTURAL_OBJECTCLASS_MAPPING = {
     ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
+    ("account","person") : ["TSIdevice", "dummyAUXILIARY"],
     ("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"],
+    ("account","inetOrgPerson") : ["TSIdevice", "dummyAUXILIARY"],
     ("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"],
     ("device","person") : ["TSIdevice", "dummyAUXILIARY"],
     ("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"],
@@ -295,7 +297,7 @@ def deleteEmptyAttributes(entry):
             del changed[k]
     return changed
 
-def reencode(self, dn,entry,debug):
+def reencode(self, dn, entry, debug):
     """
     encoded explizit alle verbliebenen str-values eines entry nach bytes
     wird nach einer exception in unparse() aufgerufen, 
@@ -303,17 +305,25 @@ def reencode(self, dn,entry,debug):
     changed = dict(entry)
     if debug: print(dn,entry)
     for k,v in entry.items():
-        for l in range(0, len(v)):
-            if (isinstance(entry[k][l],str)):
-                if debug:
-                    print("problematisches Element",l,"ist",type(entry[k][l]),"  value=X",entry[k][l],"X")
+        if debug: print("Prozessiere v = ",v," mit ",len(v)," Elementen:")
+        for l in v:
+            if debug: print("l=",l,"Typ bytes =",isinstance(entry[k][l],bytes))
+            if not isinstance(l,bytes):
+                if debug: print("problematisches Element",l,"ist",type(entry[k][l]),"  value=X",entry[k][l],"X")
                 changed[k][l] = changed[k][l].encode()
-                self.decodeError += 1
-                if debug:
-                    print("Korrigiertes    Element",l,"ist",type(changed[k][l]),"value=X",entry[k][l],"X")
-                self.logger.write("[DECODEERROR] Es wurde Element {} = {} bei dn={} erneut encodiert\n".format(l,entry[k][l],dn))
+                self.encodeError += 1
+                if debug: print("Korrigiertes    Element",l,"ist",type(changed[k][l]),"value=X",entry[k][l],"X")
+                self.logger.write("[DECODEERROR] Es wurde Element {} = {} bei dn={} erneut encodiert.\n".format(l,entry[k][l],dn))
+
     return changed
 
+def encodeIfNotByte(x):
+    if not isinstance(x, bytes): return x.encode()
+    else: return x
+
+def decodeIfNotByte(x):
+    if isinstance(x, bytes): return x.decode()
+    else: return x
 
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
@@ -323,7 +333,7 @@ class StructuralLDIFParser(LDIFParser):
         self.missingStructurals = 0
         self.countnonStructurals = 0
         self.multipleStructurals = 0
-        self.decodeError = 0
+        self.encodeError = 0
         self.unmapped = 0
         self.writer = LDIFWriter(outputFile)
         self.logger = logFile
@@ -338,7 +348,7 @@ class StructuralLDIFParser(LDIFParser):
         self.count+=1
         # Konvertiert alle Objektattributseinträge von byte arrays zu Strings damit Stringoperationen normal durchgeführt werden können
         if DEBUG: print("vor Decoding byte arrays nach Strings:", entry,"\n")
-        modifyEntryValues(lambda x: x.decode(), entry)
+        modifyEntryValues(decodeIfNotByte, entry)
 
 
         # bedient sich austauschbarer Funktion (hier: löscht CSN aus Attributensname)
@@ -371,6 +381,7 @@ class StructuralLDIFParser(LDIFParser):
         if DEBUG: print("vor addMissingStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
             self.addMissingStructural(dn, entry)
+
         # ersetzt 2 STRUCTURAL objectClasses durch 2 andere (siehe Mapping in STRUCTURAL_OBJECTCLASS_MAPPING)
         if DEBUG: print("vor reduceMultipleStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) >= 2):
@@ -378,16 +389,15 @@ class StructuralLDIFParser(LDIFParser):
 
         # Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
         if DEBUG: print("vor Re-Encoding Strings nach bytes:", entry,"\n")
-        modifyEntryValues(lambda x: x.encode("utf-8"), entry)
+        modifyEntryValues(encodeIfNotByte, entry)
 
         try:
             self.writer.unparse(dn, entry)
-        except Exception:
-            # ist das Problem immer das Element[0]?? Haben wir einen off-by-one-Fehler?
-            entry = reencode(self, dn, entry, False)
+        except Exception as e:
+            if DEBUG: print("in exception: ",dir(e),entry)
 
         finally:
-            print("Analysiert: {} Missing Struct: {} Multiple Struct {} De/EncodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.decodeError, self.unmapped),end="")
+            print("Analysiert: {} Missing Struct: {} Multiple Struct {} De/EncodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.encodeError, self.unmapped),end="")
             pass
 
     def addMissingStructural(self, dn, entry):
@@ -400,7 +410,7 @@ class StructuralLDIFParser(LDIFParser):
             self.nonStructuralCandidates.update(entry["objectClass"])
             if (self.nonStructuralCandidates != before):
                 self.countnonStructurals = len(self.nonStructuralCandidates)
-#                print("{} objectClasses in entries ohne STRUCTRAL objectClass: {}".format(self.countnonStructurals,self.nonStructuralCandidates))
+                if DEBUG: print("{} objectClasses in entries ohne STRUCTRAL objectClass: {}".format(self.countnonStructurals,self.nonStructuralCandidates))
             self.logger.write("[NEWOC] Es wurde ein Default-Structural bei dn={} mit den objectClasses {} ergänzt\n".format(dn,entry["objectClass"]))
             entry["objectClass"].append(DEFAULT_STRUCTURAL)
             self.missingStructurals += 1
@@ -413,19 +423,20 @@ class StructuralLDIFParser(LDIFParser):
         Fehlerfall: Record hat mehr als ein Structural als Oberklasse
         Die Nicht-Structural Oberklassen bleiben bestehen, nach einem vordefinierten Mapping werden die Objectclasses modifiziert
         """
+        count = self.multipleStructurals
         structurals, nonstructurals = splitClasses(entry, self.ALL_STRUCTURALS)
-#        print("structurals: ",structurals)
-        for (a,b) in STRUCTURAL_OBJECTCLASS_MAPPING:
+        for (a,b) in STRUCTURAL_OBJECTCLASS_MAPPING.keys():
             if a in structurals and b in structurals:
-#        if tuple(structurals) in STRUCTURAL_OBJECTCLASS_MAPPING:
+#                print("a=",a,"b=",b)
                 self.multipleStructurals+=1
-#                newStructural = STRUCTURAL_OBJECTCLASS_MAPPING[tuple(structurals)]
-                newStructural = STRUCTURAL_OBJECTCLASS_MAPPING[(a,b)]
+                newStructural = structurals
+                newStructural.remove(a); newStructural.remove(b)
+                newStructural += STRUCTURAL_OBJECTCLASS_MAPPING[(a,b)]
                 entry["objectClass"] = nonstructurals + newStructural
                 self.logger.write("[NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping von {} auf {} durchgeführt\n".format(dn, structurals, newStructural))
-            else:
-                self.unmapped+=1
-                self.logger.write("[UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
+        if count == self.multipleStructurals:
+            self.unmapped+=1
+            self.logger.write("[UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
 
 
 inputfile = ''
