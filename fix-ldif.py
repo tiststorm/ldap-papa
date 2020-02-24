@@ -11,7 +11,8 @@ DEBUG = False
 
 URI = "ldap://25.16.128.69:3389/"
 BINDDN = "cn=Manager,dc=adm"
-PASSWD_FILE = "$HOME/.p-test"
+#PASSWD_FILE = os.environ["HOME"] + "/.p-test"
+PASSWD_FILE = "/home/admin/mstorm/.p-test"
 SCHEMA_DN = "cn=schema,cn=config"
 SCHEMA_FILTER = "(objectclass=olcSchemaConfig)"
 SCHEMA_ATTRS = ["olcObjectClasses"]
@@ -20,10 +21,10 @@ DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
 # bekannt serverübergreifend operationale Parameter
 OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry","ref"]
-# anscheinend DSEE-proprietäre operationale Parameter
+# DSEE-spezifische operationale Parameter
 OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","passwordHistory","accountUnlockTime","passwordExpirationTime","pwdGraceUseTime","retryCountResetTime"]
 
-# anscheinend nicht mehr im Schema existente ehemals operational Attribute
+# anscheinend nicht mehr verwendete operational Attribute
 DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
 # anscheinend nicht mehr im Schema existente eigene Attribute
 DELETE_ATTRS2  = ["dthostnamemode","dtsetshadowattributes"]
