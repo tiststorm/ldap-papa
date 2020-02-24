@@ -49,7 +49,6 @@ OC_ATTR_DEPENDENCY = {
 STRUCTURAL_OBJECTCLASS_MAPPING = {
     ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
     ("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"],
-    ("organizationalPerson","account") : ["dummyAUXILIARY","TSIdevice"],
     ("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"],
     ("device","person") : ["TSIdevice", "dummyAUXILIARY"],
     ("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"],
