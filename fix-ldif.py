@@ -49,6 +49,7 @@ OC_ATTR_DEPENDENCY = {
 STRUCTURAL_OBJECTCLASS_MAPPING = {
     ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
     ("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"],
+    ("organizationalPerson","account") : ["dummyAUXILIARY","TSIdevice"],
     ("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"],
     ("device","person") : ["TSIdevice", "dummyAUXILIARY"],
     ("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"],
@@ -373,7 +374,7 @@ class StructuralLDIFParser(LDIFParser):
             self.addMissingStructural(dn, entry)
         # ersetzt 2 STRUCTURAL objectClasses durch 2 andere (siehe Mapping in STRUCTURAL_OBJECTCLASS_MAPPING)
         if DEBUG: print("vor reduceMultipleStructural:", entry,"\n")
-        if (sharedClasses(entry, self.ALL_STRUCTURALS) == 2):
+        if (sharedClasses(entry, self.ALL_STRUCTURALS) >= 2):
             self.reduceMultipleStructural(dn, entry)
 
         # Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
@@ -414,14 +415,18 @@ class StructuralLDIFParser(LDIFParser):
         Die Nicht-Structural Oberklassen bleiben bestehen, nach einem vordefinierten Mapping werden die Objectclasses modifiziert
         """
         structurals, nonstructurals = splitClasses(entry, self.ALL_STRUCTURALS)
-        if tuple(structurals) in STRUCTURAL_OBJECTCLASS_MAPPING:
-            self.multipleStructurals+=1
-            newStructural = STRUCTURAL_OBJECTCLASS_MAPPING[tuple(structurals)]
-            entry["objectClass"] = nonstructurals + newStructural
-            self.logger.write("[NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping von {} auf {} durchgeführt\n".format(dn, structurals, newStructural))
-        else:
-            self.unmapped+=1
-            self.logger.write("[UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
+#        print("structurals: ",structurals)
+        for (a,b) in STRUCTURAL_OBJECTCLASS_MAPPING:
+            if a in structurals and b in structurals:
+#        if tuple(structurals) in STRUCTURAL_OBJECTCLASS_MAPPING:
+                self.multipleStructurals+=1
+#                newStructural = STRUCTURAL_OBJECTCLASS_MAPPING[tuple(structurals)]
+                newStructural = STRUCTURAL_OBJECTCLASS_MAPPING[(a,b)]
+                entry["objectClass"] = nonstructurals + newStructural
+                self.logger.write("[NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping von {} auf {} durchgeführt\n".format(dn, structurals, newStructural))
+            else:
+                self.unmapped+=1
+                self.logger.write("[UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
 
 
 inputfile = ''
