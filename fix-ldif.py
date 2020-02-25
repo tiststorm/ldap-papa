@@ -30,12 +30,11 @@ DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParen
 DELETE_ATTRS2  = ["dthostnamemode","dtsetshadowattributes"]
 # unklar ob zu löschende Attribute
 DELETE_ATTRS3 = []
-#DELETE_ATTRS3 = ["userCertificate"]
 
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
 # Falls eine oC (Dict-Key) existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht, dann füge
-# dieses Attribute letztere(s) mit einem Dummy-Value (2. Wert des Tupels, wenn nicht leer) hinzu
+# dieses Attribut und ein Dummy-Value (2. Wert des Tupels, wenn nicht leer) hinzu
 # Achtung, Prozessierung ist case sensitiv da er sich auf die Attributs*value*s bezieht; daher ggfs. mehrere Einträge verwenden
 
 OC_ATTR_DEPENDENCY = {
@@ -57,7 +56,6 @@ STRUCTURAL_OBJECTCLASS_MAPPING = {
     ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
     ("device","person") : ["TSIdevice", "dummyAUXILIARY"],
     ("device","organizationalPerson") : ["TSIdevice","dummyAUXILIARY"],
-    ("groupofuniquenames","organizationalUnit") : ["TSIdevice","dummyAUXILIARY"],
     ("groupOfUniqueNames","organizationalUnit") : ["TSIdevice","dummyAUXILIARY"]
 }
 
@@ -255,8 +253,8 @@ def splitClasses(entry, classesToInspect):
     for c in classesToInspect:
         lowerCaseOCs += [c.casefold()]
     for x in entry["objectClass"]:
-        if x.casefold() in lowerCaseOCs: present.append(x)
-        else: absent.append(x)
+        if x.casefold() in lowerCaseOCs: present.append(x.casefold())
+        else: absent.append(x.casefold())
     present.sort()
     absent.sort()
     return (present, absent)
@@ -450,13 +448,14 @@ class StructuralLDIFParser(LDIFParser):
         count = self.multipleStructurals
         structurals, nonstructurals = splitClasses(entry, self.ALL_STRUCTURALS)
 #        print("alle STRUCTURALS =",self.ALL_STRUCTURALS,"\nstructurals =",structurals,"\nnonstructurals =",nonstructurals)
-        for (a,b) in STRUCTURAL_OBJECTCLASS_MAPPING.keys():
+        for (oCa,oCb) in STRUCTURAL_OBJECTCLASS_MAPPING.keys():
+            a = oCa.casefold(); b = oCb.casefold();
 #            print("a =",a,"b =",b,"structurals =",structurals,"IN(a)=",a in structurals,"IN(b)=",b in structurals)
             if a in structurals and b in structurals:
                 self.multipleStructurals+=1
                 newStructural = structurals
                 newStructural.remove(a); newStructural.remove(b)
-                newStructural += STRUCTURAL_OBJECTCLASS_MAPPING[(a,b)]
+                newStructural += STRUCTURAL_OBJECTCLASS_MAPPING[(oCa,oCb)]
                 entry["objectClass"] = nonstructurals + newStructural
                 self.logger.write("[NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping von {} auf {} durchgeführt\n".format(dn, structurals, newStructural))
         if count == self.multipleStructurals:
