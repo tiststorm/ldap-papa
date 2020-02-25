@@ -20,7 +20,7 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
 # bekannt serverübergreifend operationale Parameter
-OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","memberOf","ldapSubEntry","ref"]
+OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","entryUUID","memberOf","ldapSubEntry","ref"]
 # DSEE-spezifische operationale Parameter
 OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","passwordHistory","accountUnlockTime","passwordExpirationTime","pwdGraceUseTime","retryCountResetTime"]
 
@@ -30,6 +30,7 @@ DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParen
 DELETE_ATTRS2  = ["dthostnamemode","dtsetshadowattributes"]
 # unklar ob zu löschende Attribute
 DELETE_ATTRS3 = []
+#DELETE_ATTRS3 = ["userCertificate"]
 
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
@@ -68,10 +69,16 @@ def usage():
 
 
 def getOperationals():
+    """
+    gibt alle (statisch definierten) operational Attribute zurück
+    """
     return OPERATIONAL_ATTRS + OPERATIONAL_ATTRS2
 
 
 def getAttributesToBeDeleted():
+    """
+    gibt alle zu löschenden Attribute zurück
+    """
     return DELETE_ATTRS + DELETE_ATTRS2 + DELETE_ATTRS3
 
 
@@ -128,6 +135,9 @@ def getStructurals():
 
 
 def sharedClasses(entry, classes):
+    """
+    gibt Anzahl objectClasses eines entries zurück, die in einer mitgelieferten Liste von objectclasses enthalten sind
+    """
     return compareClasses(entry,classes).count(True)
 
 
@@ -176,6 +186,19 @@ def sanitizeBooleanSyntax(dn,entry,attr,self):
         if b != k:
             self.logger.write("[SANITIZE BOOLEAN] Bei dn=\"{}\" wurde der Boolean-Wert des Attributes {} korrigiert: \"{}\" => \"{}\"\n".format(dn, attr, k, b))
     return ret
+
+def addBinaryTransfer(dn,entry,attr,self):
+    """
+    fügt dem Namen eines Attributes wie z.B. userCertificate ";binary" hinzu, da es ansonsten nicht eingelesen werden kann
+    """	
+    print("vor addBinary:",entry)
+    changed = dict(entry)
+    a = attr + ";binary"
+    changed[a] = entry[attr]
+    del changed[attr] 
+
+    print("nach addBinary:",changed)
+    return changed
 
 
 PrintableStringExtraChars = [ " ","'","(",")","+",",","-",".","/",":","=","?" ]	# laut ASN1
@@ -245,7 +268,7 @@ def splitClasses(entry, classesToInspect):
     absent.sort()
     return (present, absent)
 
-def deleteCSN(value, separator):
+def RemoveAllButAttrName(value, separator):
     v = value.split(separator)[0]
     return v
  
@@ -318,12 +341,19 @@ def reencode(self, dn, entry, debug):
     return changed
 
 def encodeIfNotByte(x):
+    """
+    encoded explizit alle verbliebenen str-values eines entry nach bytes
+    """
     if not isinstance(x, bytes): return x.encode()
     else: return x
 
 def decodeIfNotByte(x):
+    """
+    decoded explizit alle verbliebenen bytes-values eines entry nach str
+    """
     if isinstance(x, bytes): return x.decode()
     else: return x
+
 
 class StructuralLDIFParser(LDIFParser):
     def __init__(self, inputFile, outputFile, logFile):
@@ -353,7 +383,7 @@ class StructuralLDIFParser(LDIFParser):
 
         # bedient sich austauschbarer Funktion (hier: löscht CSN aus Attributensname)
         if DEBUG: print("vor modifyAttributeNames:",entry,"\n")
-        entry = modifyAttributeNames(deleteCSN, entry)
+        entry = modifyAttributeNames(RemoveAllButAttrName, entry)
 
         # löscht leere Attribute (können von der Form "attribut;.....;deleted:" sein)
         if DEBUG: print("vor deleteEmptyAttributes:",entry,"\n")
@@ -386,7 +416,6 @@ class StructuralLDIFParser(LDIFParser):
         if DEBUG: print("vor reduceMultipleStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) >= 2):
             self.reduceMultipleStructural(dn, entry)
-
         # Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
         if DEBUG: print("vor Re-Encoding Strings nach bytes:", entry,"\n")
         modifyEntryValues(encodeIfNotByte, entry)
@@ -394,7 +423,8 @@ class StructuralLDIFParser(LDIFParser):
         try:
             self.writer.unparse(dn, entry)
         except Exception as e:
-            if DEBUG: print("in exception: ",dir(e),entry)
+            print("Exception: ",e,dir(e))
+            print("Exception: ",entry)
 
         finally:
             print("Analysiert: {} Missing Struct: {} Multiple Struct {} De/EncodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.encodeError, self.unmapped),end="")
@@ -441,6 +471,8 @@ class StructuralLDIFParser(LDIFParser):
 
 inputfile = ''
 outputfile = ''
+tmpfile = '/tmp/.$$'
+
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hi:o:l:",["ifile=","ofile=","lfile="])
 except getopt.GetoptError:
@@ -457,8 +489,16 @@ for opt, arg in opts:
     elif opt in ("-l", "--lfile"):
        logfile  = arg
 
-with open(inputfile,'r') as inFile, open(outputfile,'w') as outFile, open(logfile,'w') as logFile:
+with open(inputfile,'r') as inFile, open(tmpfile,'w') as outFile, open(logfile,'w') as logFile:
     parser = StructuralLDIFParser(inFile, outFile, logFile)
     print("------------------------------------------------------------------------------------------------------------------")
     parser.parse()
     print("\n")
+
+''' LDIF post prozessieren '''
+with open(tmpfile,'r') as inFile, open(outputfile,'w') as outFile:
+    for line in inFile:
+        line = line.replace("userCertificate","userCertificate;binary")
+        outFile.write(line)
+
+os.remove(tmpfile)
