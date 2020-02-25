@@ -418,7 +418,7 @@ class StructuralLDIFParser(LDIFParser):
             self.writer.unparse(dn, entry)
         except Exception as e:
             print("Exception: ",e,dir(e))
-            print("Exception: ",entry)
+            print("\nEntry: ",entry)
 
         finally:
             print("Analysiert: {} Missing Struct: {} Multiple Struct {} De/EncodeError {} Unmapped {} \r".format(self.count,self.missingStructurals, self.multipleStructurals, self.encodeError, self.unmapped),end="")
@@ -449,9 +449,9 @@ class StructuralLDIFParser(LDIFParser):
         """
         count = self.multipleStructurals
         structurals, nonstructurals = splitClasses(entry, self.ALL_STRUCTURALS)
-        print("alle STRUCTURALS =",self.ALL_STRUCTURALS,"\nstructurals =",structurals,"\nnonstructurals =",nonstructurals)
+#        print("alle STRUCTURALS =",self.ALL_STRUCTURALS,"\nstructurals =",structurals,"\nnonstructurals =",nonstructurals)
         for (a,b) in STRUCTURAL_OBJECTCLASS_MAPPING.keys():
-            print("a =",a,"b =",b,"structurals =",structurals,"IN(a)=",a in structurals,"IN(b)=",b in structurals)
+#            print("a =",a,"b =",b,"structurals =",structurals,"IN(a)=",a in structurals,"IN(b)=",b in structurals)
             if a in structurals and b in structurals:
                 self.multipleStructurals+=1
                 newStructural = structurals
