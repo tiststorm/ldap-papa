@@ -33,10 +33,10 @@ DELETE_ATTRS3 = []
 
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
-# Falls eine oC existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht, dann
-# - lösche oC, falls 2. Wert des Tupels leer ist
-# - füge dieses Attribut  mit dem 2. Wert des Tupels als Dummy-Value ein
-# Achtung, key muss all-lowercase (Prozessierung benutzt Attributs*value*, der lower oder CamelCase sein kann)
+# Falls eine oC existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht:
+# - falls ALLE MUST-Attribute fehlen, lösche die oC
+# - ansonsten füge dieses Attribut mit dem 2. Wert des Tupels als Dummy-Value ein
+# Achtung, key muss all-lowercase sein, Prozessierung benutzt Attributs*value*, der lowercase oder camelCase sein kann
 
 OC_ATTR_DEPENDENCY = {
 #     "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
@@ -396,10 +396,6 @@ class StructuralLDIFParser(LDIFParser):
         if DEBUG: print("vor sanitizeEntry:",entry,"\n")
         entry = sanitizeEntry(dn, entry, self)
 
-        # ergänzt falls musthave Attribute fehlen das Attribut mit DummyValue 
-        if DEBUG: print("vor sanitizeObjectClasses:", entry,"\n")
-        entry = sanitizeObjectClasses(dn, entry, OC_ATTR_DEPENDENCY, self)
-
         # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
         # muss NACH sanitizeObjectClasses laufen, da dortdrin ggfs. die letzte STRUCTURAL Klasse gelöscht wird
         if DEBUG: print("vor addMissingStructural:", entry,"\n")
@@ -410,6 +406,11 @@ class StructuralLDIFParser(LDIFParser):
         if DEBUG: print("vor reduceMultipleStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) >= 2):
             self.reduceMultipleStructural(dn, entry)
+
+        # ergänzt falls musthave Attribute fehlen das Attribut mit einem Dummy-Value 
+        # es kann sich auch um ein im letzten Schritt hinzugefügtes Attribut handeln
+        if DEBUG: print("vor sanitizeObjectClasses:", entry,"\n")
+        entry = sanitizeObjectClasses(dn, entry, OC_ATTR_DEPENDENCY, self)
 
         # Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
         if DEBUG: print("vor Re-Encoding Strings nach bytes:", entry,"\n")
