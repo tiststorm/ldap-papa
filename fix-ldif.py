@@ -48,14 +48,17 @@ OC_ATTR_DEPENDENCY = {
 # person => MAY (sn $ cn )
 # nisNetgroup => MAY ( nisNetgroupTriple $ memberNisNetgroup $ description )
 STRUCTURAL_OBJECTCLASS_MAPPING = {
-    ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
     ("account","person") : ["TSIdevice", "dummyAUXILIARY"],
     ("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"],
     ("account","inetOrgPerson") : ["TSIdevice", "dummyAUXILIARY"],
-    ("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"],
-    ("device","person") : ["TSIdevice", "dummyAUXILIARY"],
     ("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"],
-    ("applicationProcess","referral") : ["TSIdevice", "dummyAUXILIARY"]
+    ("applicationProcess","referral") : ["TSIdevice", "dummyAUXILIARY"],
+    ("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"],
+    ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
+    ("device","person") : ["TSIdevice", "dummyAUXILIARY"],
+    ("device","organizationalPerson") : ["TSIdevice","dummyAUXILIARY"],
+    ("groupofuniquenames","organizationalUnit") : ["TSIdevice","dummyAUXILIARY"],
+    ("groupOfUniqueNames","organizationalUnit") : ["TSIdevice","dummyAUXILIARY"]
 }
 
 
@@ -187,19 +190,6 @@ def sanitizeBooleanSyntax(dn,entry,attr,self):
             self.logger.write("[SANITIZE BOOLEAN] Bei dn=\"{}\" wurde der Boolean-Wert des Attributes {} korrigiert: \"{}\" => \"{}\"\n".format(dn, attr, k, b))
     return ret
 
-def addBinaryTransfer(dn,entry,attr,self):
-    """
-    fügt dem Namen eines Attributes wie z.B. userCertificate ";binary" hinzu, da es ansonsten nicht eingelesen werden kann
-    """	
-    print("vor addBinary:",entry)
-    changed = dict(entry)
-    a = attr + ";binary"
-    changed[a] = entry[attr]
-    del changed[attr] 
-
-    print("nach addBinary:",changed)
-    return changed
-
 
 PrintableStringExtraChars = [ " ","'","(",")","+",",","-",".","/",":","=","?" ]	# laut ASN1
 PrintableString = list(string.ascii_lowercase) + list(string.ascii_uppercase) + list(range(1,10)) + PrintableStringExtraChars
@@ -256,13 +246,16 @@ def sanitizeEntry(dn, entry, self):
 def splitClasses(entry, classesToInspect):
     """
     Nimmt einen Record und gibt ein Tupel (a, b) mit
-        a alle Klassen in classesToInspect
-        b alle Klassen NICHT in classesToInspect
+        a alle Klassen des Entries die in classesToInspect enthalten sind
+        b alle Klassen des Entries die NICHT in classesToInspect enthalten sind
     """
     present = []
     absent = []
+    lowerCaseOCs = []
+    for c in classesToInspect:
+        lowerCaseOCs += [c.casefold()]
     for x in entry["objectClass"]:
-        if x in classesToInspect: present.append(x)
+        if x.casefold() in lowerCaseOCs: present.append(x)
         else: absent.append(x)
     present.sort()
     absent.sort()
@@ -416,6 +409,7 @@ class StructuralLDIFParser(LDIFParser):
         if DEBUG: print("vor reduceMultipleStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) >= 2):
             self.reduceMultipleStructural(dn, entry)
+
         # Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
         if DEBUG: print("vor Re-Encoding Strings nach bytes:", entry,"\n")
         modifyEntryValues(encodeIfNotByte, entry)
@@ -455,9 +449,10 @@ class StructuralLDIFParser(LDIFParser):
         """
         count = self.multipleStructurals
         structurals, nonstructurals = splitClasses(entry, self.ALL_STRUCTURALS)
+        print("alle STRUCTURALS =",self.ALL_STRUCTURALS,"\nstructurals =",structurals,"\nnonstructurals =",nonstructurals)
         for (a,b) in STRUCTURAL_OBJECTCLASS_MAPPING.keys():
+            print("a =",a,"b =",b,"structurals =",structurals,"IN(a)=",a in structurals,"IN(b)=",b in structurals)
             if a in structurals and b in structurals:
-#                print("a=",a,"b=",b)
                 self.multipleStructurals+=1
                 newStructural = structurals
                 newStructural.remove(a); newStructural.remove(b)
