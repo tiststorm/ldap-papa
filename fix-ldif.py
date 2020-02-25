@@ -27,20 +27,22 @@ OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAut
 # anscheinend nicht mehr verwendete operational Attribute
 DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
 # anscheinend nicht mehr im Schema existente eigene Attribute
-DELETE_ATTRS2  = ["dthostnamemode","dtsetshadowattributes"]
+DELETE_ATTRS2  = ["dthostnamemode","dtsetshadowattributes","dtNetgroupTimestamp"]
 # unklar ob zu löschende Attribute
 DELETE_ATTRS3 = []
 
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
-# Falls eine oC (Dict-Key) existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht, dann füge
-# dieses Attribut und ein Dummy-Value (2. Wert des Tupels, wenn nicht leer) hinzu
-# Achtung, Prozessierung ist case sensitiv da er sich auf die Attributs*value*s bezieht; daher ggfs. mehrere Einträge verwenden
+# Falls eine oC existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht, dann
+# - lösche oC, falls 2. Wert des Tupels leer ist
+# - füge dieses Attribut  mit dem 2. Wert des Tupels als Dummy-Value ein
+# Achtung, key muss all-lowercase (Prozessierung benutzt Attributs*value*, der lower oder CamelCase sein kann)
 
 OC_ATTR_DEPENDENCY = {
-     "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
-     "groupofuniquenames" : [("uniqueMember", "dummyMember")]
-    }
+#     "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
+     "groupofuniquenames" : [("uniqueMember", "dummyMember")],
+     "tsidevice" : [("sn", "dummyName")]
+}
 
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
 # (für inetOrPerson,organizationalPerson scheint es keine Einträge zu geben)
@@ -158,13 +160,14 @@ def sanitizeObjectClasses(dn, entry, dependencies, self):
     löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und setzt ein dummy-Attribut
     """
     for oC in entry["objectClass"]:
-        if oC in dependencies: # Wir wollen für diese Objectclass oC alle dependencies überprüfen
-            l = [d[0] not in entry for d in dependencies[oC]]
+        o = oC.casefold()
+        if o in dependencies: # Wir wollen für diese Objectclass oC alle dependencies überprüfen
+            l = [d[0] not in entry for d in dependencies[o]]
             if all(l):
                 entry["objectClass"].remove(oC)
-                self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde die oC {} gelöscht, weil die zugehörigen must-Attribute fehlen.\n".format(dn, oC))
+                self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde die oC {} gelöscht, weil alle zugehörigen must-Attribute fehlen.\n".format(dn, oC))
                 break
-            for attribute, value in dependencies[oC]: 
+            for attribute, value in dependencies[o]: 
                 if attribute not in entry:
                     entry[attribute] = [value] # fügt dem dict neuen Eintrag mit key = Attributs-Name und value = dummy hinzu
                     self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde dummy {}: {} ergänzt, weil es ein must-Attribut der objectClass {} ist, aber fehlte.\n".format(dn, attribute, value, oC))
