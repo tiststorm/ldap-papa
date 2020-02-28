@@ -188,16 +188,12 @@ def sanitizeObjectClasses(dn, entry, dependencies, self):
     (Liste als "dependencies" übergeben)
     """
     d = dict(dependencies)
-    print("entry=",entry,"\r\nd=",d)
     for attr in d.keys():
-        print("attr=",attr,"value=",d[attr])
         if attr in entry:
             for a,v in d[attr]:
                 entry[a].append(v)
-                print("[SANITIZE OC] Bei dn=\"{}\" wurde {}: {} ergänzt, weil es ein-Attribut {} gibt.\n".format(dn, a, v, attr))
                 self.logger.write("[SANITIZE OC] Bei dn=\"{}\" wurde {}: {} ergänzt, weil es ein-Attribut {} gibt.\n".format(dn, a, v, attr))
 
-    print("entry=",entry,"\r\nd=",d)
     return entry
 
 
