@@ -54,7 +54,7 @@ STRUCTURAL_OBJECTCLASS_MAPPING = {
     ,("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"]
     ,("applicationProcess","referral") : ["dummySTRUCTURAL", "dummyAUXILIARY"]
     ,("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"]
-    ,("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"]
+    ,("device","nisNetgroup") : ["TSIdevice2", "dummyAUXILIARY"]
     ,("device","person") : ["TSIdevice", "dummyAUXILIARY"]
     ,("device","organizationalPerson") : ["TSIdevice","dummyAUXILIARY"]
     ,("groupOfUniqueNames","organizationalUnit") : ["TSIdevice","dummyAUXILIARY"]
