@@ -9,7 +9,7 @@ import sys,os,getopt,ldap,string,unicodedata
 DEBUG = False
 
 
-URI = "ldap://25.16.128.69:3389/"
+URI = "ldap://25.16.128.68:3389/"
 BINDDN = "cn=Manager,dc=adm"
 #PASSWD_FILE = os.environ["HOME"] + "/.p-test"
 PASSWD_FILE = "/home/admin/mstorm/.p-test"
@@ -20,12 +20,12 @@ SCHEMA_ATTRS = ["olcObjectClasses"]
 DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 
 # bekannt serverübergreifend operationale Parameter
-OPERATIONAL_ATTRS  = ["aci","nsUniqueId","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","entryUUID","memberOf","ldapSubEntry","ref"]
+OPERATIONAL_ATTRS  = ["aci","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","entryUUID","memberOf","ldapSubEntry","ref"]
 # DSEE-spezifische operationale Parameter
 OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","passwordHistory","accountUnlockTime","passwordExpirationTime","pwdGraceUseTime","retryCountResetTime"]
 
 # anscheinend nicht mehr verwendete operational Attribute
-DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsUniqueId","nsAccountLock"]
+DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsAccountLock"]
 # anscheinend nicht mehr im Schema existente eigene Attribute
 DELETE_ATTRS2  = ["dthostnamemode","dtsetshadowattributes","dtNetgroupTimestamp"]
 # unklar ob zu löschende Attribute
@@ -34,15 +34,22 @@ DELETE_ATTRS3 = []
 
 # Fehlerfall: ein Eintrag hat eine oC, aber nicht die zugehörigen MUST-Attribute
 # Falls eine oC existiert, aber die zugehörigen musthave-Attribut(e) (1. Wert des Tupels) nicht:
-# - falls ALLE MUST-Attribute fehlen, lösche die oC
+# - falls ALLE MUST-Attribute fehlen, lösche die oC und füge oC: dummyAUXILIARY hinzu (um deren MAY Attribute zuzulassen)
 # - ansonsten füge dieses Attribut mit dem 2. Wert des Tupels als Dummy-Value ein
 # Achtung, key muss all-lowercase sein, Prozessierung benutzt Attributs*value*, der lowercase oder camelCase sein kann
-
 OC_ATTR_DEPENDENCY = {
      "groupofuniquenames" : [("uniqueMember", "dummyMember")]
+     ,"nstombstone" : [("DOES-NOT-EXIST", "dummyMember")]
 #     ,"tsidevice" : [("sn", "dummyName")]
 }
 
+
+# Fehlerfall: ein Eintrag hat ein Attribut, aber nicht die zugehörige oC => füge oC: dummyAUXILIARY hinzu
+OC_ATTR_DEPENDENCY2 = {
+     "nsUniqueID" : [("objectClass", "dummyAUXILIARY")]
+
+
+# Fehlerfall multiple STRUCTURAL objectclasses:
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
 # (für inetOrPerson,organizationalPerson scheint es keine Einträge zu geben)
 # person => MAY (sn $ cn )
@@ -164,7 +171,8 @@ def sanitizeObjectClasses(dn, entry, dependencies, self):
             l = [d[0] not in entry for d in dependencies[o]]
             if all(l):
                 entry["objectClass"].remove(oC)
-                self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde die oC {} gelöscht, weil alle zugehörigen must-Attribute fehlen.\n".format(dn, oC))
+                entry["objectClass"].append(DEFAULT_STRUCTURAL)
+                self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde die oC {} gelöscht und oC: {} ergänzt, weil alle zugehörigen must-Attribute fehlen.\n".format(dn, oC, DEFAULT_STRUCTURAL))
                 break
             for attribute, value in dependencies[o]: 
                 if attribute not in entry:
