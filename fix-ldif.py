@@ -40,8 +40,8 @@ DELETE_ATTRS3 = []
 OC_ATTR_DEPENDENCY = {
      "groupofuniquenames" : [("uniqueMember", "dummyMember")]
      ,"nstombstone" : [("DOES-NOT-EXIST", "dummyMember")]
-     ,"ldapSubEntry" : [("DOES-NOT-EXIST", "dummyMember")]
-     ,"mailRecipient" : [("DOES-NOT-EXIST", "dummyMember")]
+     ,"ldapsubentry" : [("DOES-NOT-EXIST", "dummyMember")]
+     ,"mailrecipient" : [("DOES-NOT-EXIST", "dummyMember")]
 #     ,"tsidevice" : [("sn", "dummyName")]
 }
 
@@ -494,6 +494,7 @@ class StructuralLDIFParser(LDIFParser):
                     self.multipleStructurals+=1
                     entry["objectClass"] = nonstructurals + newStructural
                     self.logger.write("[NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping von {} auf {} durchgeführt\n".format(dn, structurals, newStructural))
+                    break
         if count == self.multipleStructurals:
             self.unmapped+=1
             self.logger.write("[UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
