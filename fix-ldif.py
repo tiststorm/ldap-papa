@@ -46,7 +46,8 @@ OC_ATTR_DEPENDENCY = {
 
 # Fehlerfall: ein Eintrag hat ein Attribut, aber nicht die zugehörige oC => füge oC: dummyAUXILIARY hinzu
 OC_ATTR_DEPENDENCY2 = {
-     "nsUniqueID" : [("objectClass", "dummyAUXILIARY")]
+     "nsUniqueId" : [("objectClass", "dummyAUXILIARY")]
+}
 
 
 # Fehlerfall multiple STRUCTURAL objectclasses:
@@ -160,10 +161,10 @@ def compareClasses(entry, classes):
         return []
 
 
-def sanitizeObjectClasses(dn, entry, dependencies, self):
+def sanitizeAttributes(dn, entry, dependencies, self):
     """
     prüft ob zu bestimmten objectClasses gehörige (must-)Attribute vorhanden sind (Liste als "dependencies" übergeben)
-    löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und setzt ein dummy-Attribut
+    löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und setzt sonst ein dummy-Attribut
     """
     for oC in entry["objectClass"]:
         o = oC.casefold()
@@ -171,13 +172,32 @@ def sanitizeObjectClasses(dn, entry, dependencies, self):
             l = [d[0] not in entry for d in dependencies[o]]
             if all(l):
                 entry["objectClass"].remove(oC)
-                entry["objectClass"].append(DEFAULT_STRUCTURAL)
-                self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde die oC {} gelöscht und oC: {} ergänzt, weil alle zugehörigen must-Attribute fehlen.\n".format(dn, oC, DEFAULT_STRUCTURAL))
+                self.logger.write("[SANITIZE ATTR] Bei dn=\"{}\" wurde die oC {} gelöscht und oC: {} ergänzt, weil alle zugehörigen must-Attribute fehlen.\n".format(dn, oC, DEFAULT_STRUCTURAL))
                 break
             for attribute, value in dependencies[o]: 
                 if attribute not in entry:
                     entry[attribute] = [value] # fügt dem dict neuen Eintrag mit key = Attributs-Name und value = dummy hinzu
-                    self.logger.write("[SANITIZE oC] Bei dn=\"{}\" wurde dummy {}: {} ergänzt, weil es ein must-Attribut der objectClass {} ist, aber fehlte.\n".format(dn, attribute, value, oC))
+                    self.logger.write("[SANITIZE ATTR] Bei dn=\"{}\" wurde dummy {}: {} ergänzt, weil es ein must-Attribut der objectClass {} ist, aber fehlte.\n".format(dn, attribute, value, oC))
+
+    return entry
+
+
+def sanitizeObjectClasses(dn, entry, dependencies, self):
+    """
+    prüft ob bestimmte Attribute enthalten sind und fügt ggfs. objectClass: <value> hinzu
+    (Liste als "dependencies" übergeben)
+    """
+    d = dict(dependencies)
+    print("entry=",entry,"\r\nd=",d)
+    for attr in d.keys():
+        print("attr=",attr,"value=",d[attr])
+        if attr in entry:
+            for a,v in d[attr]:
+                entry[a].append(v)
+                print("[SANITIZE OC] Bei dn=\"{}\" wurde {}: {} ergänzt, weil es ein-Attribut {} gibt.\n".format(dn, a, v, attr))
+                self.logger.write("[SANITIZE OC] Bei dn=\"{}\" wurde {}: {} ergänzt, weil es ein-Attribut {} gibt.\n".format(dn, a, v, attr))
+
+    print("entry=",entry,"\r\nd=",d)
     return entry
 
 
@@ -409,12 +429,17 @@ class StructuralLDIFParser(LDIFParser):
             self.reduceMultipleStructural(dn, entry)
 
         # ergänzt falls musthave Attribute fehlen das Attribut mit einem Dummy-Value 
-        # es kann sich auch um ein im letzten Schritt hinzugefügtes Attribut handeln
+        # es kann sich auch um ein im vorigen Schritt hinzugefügtes Attribut handeln
+        if DEBUG: print("vor sanitizeAttributes:", entry,"\n")
+        entry = sanitizeAttributes(dn, entry, OC_ATTR_DEPENDENCY, self)
+
+        # ergänzt oC: dummyAUXILIARY falls Attribute enthalten sind, die in keiner oC sind
         if DEBUG: print("vor sanitizeObjectClasses:", entry,"\n")
-        entry = sanitizeObjectClasses(dn, entry, OC_ATTR_DEPENDENCY, self)
+        entry = sanitizeObjectClasses(dn, entry, OC_ATTR_DEPENDENCY2, self)
 
         # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
-        # muss zuletzt laufen, da z.B. in sanitizeObjectClasses u.a. Routinen ggfs. die letzte STRUCTURAL Klasse gelöscht wird
+        # muss zuletzt laufen, da z.B. in sanitizeObjectClasses u.a. Routinen ggfs. die letzte STRUCTURAL Klasse
+        # gelöscht wird
         if DEBUG: print("vor addMissingStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
             self.addMissingStructural(dn, entry)
