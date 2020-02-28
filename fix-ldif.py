@@ -395,12 +395,6 @@ class StructuralLDIFParser(LDIFParser):
         if DEBUG: print("vor sanitizeEntry:",entry,"\n")
         entry = sanitizeEntry(dn, entry, self)
 
-        # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
-        # muss NACH sanitizeObjectClasses laufen, da dortdrin ggfs. die letzte STRUCTURAL Klasse gelöscht wird
-        if DEBUG: print("vor addMissingStructural:", entry,"\n")
-        if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
-            self.addMissingStructural(dn, entry)
-
         # ersetzt 2 STRUCTURAL objectClasses durch 2 andere (siehe Mapping in STRUCTURAL_OBJECTCLASS_MAPPING)
         if DEBUG: print("vor reduceMultipleStructural:", entry,"\n")
         if (sharedClasses(entry, self.ALL_STRUCTURALS) >= 2):
@@ -410,6 +404,12 @@ class StructuralLDIFParser(LDIFParser):
         # es kann sich auch um ein im letzten Schritt hinzugefügtes Attribut handeln
         if DEBUG: print("vor sanitizeObjectClasses:", entry,"\n")
         entry = sanitizeObjectClasses(dn, entry, OC_ATTR_DEPENDENCY, self)
+
+        # fügt allen Einträgen ohne STRUCTURAL objectClass eine solche hinzu
+        # muss zuletzt laufen, da z.B. in sanitizeObjectClasses u.a. Routinen ggfs. die letzte STRUCTURAL Klasse gelöscht wird
+        if DEBUG: print("vor addMissingStructural:", entry,"\n")
+        if (sharedClasses(entry, self.ALL_STRUCTURALS) == 0):
+            self.addMissingStructural(dn, entry)
 
         # Konvertiert alle Objektattributseinträge zurück zu Byte-Literalen damit das Unparsen durch LDIFWriter funktioniert
         if DEBUG: print("vor Re-Encoding Strings nach bytes:", entry,"\n")
