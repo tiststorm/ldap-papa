@@ -40,6 +40,8 @@ DELETE_ATTRS3 = []
 OC_ATTR_DEPENDENCY = {
      "groupofuniquenames" : [("uniqueMember", "dummyMember")]
      ,"nstombstone" : [("DOES-NOT-EXIST", "dummyMember")]
+     ,"ldapSubEntry" : [("DOES-NOT-EXIST", "dummyMember")]
+     ,"mailRecipient" : [("DOES-NOT-EXIST", "dummyMember")]
 #     ,"tsidevice" : [("sn", "dummyName")]
 }
 
@@ -65,7 +67,7 @@ STRUCTURAL_OBJECTCLASS_MAPPING = {
     ,("device","nisNetgroup") : ["TSIdevice2", "dummyAUXILIARY"]
     ,("device","person") : ["TSIdevice", "dummyAUXILIARY"]
     ,("device","organizationalPerson") : ["TSIdevice","dummyAUXILIARY"]
-    ,("groupOfUniqueNames","organizationalUnit") : ["TSIdevice","dummyAUXILIARY"]
+    ,("groupOfUniqueNames","organizationalUnit") : ["TSIdevice3","dummyAUXILIARY"]
 }
 
 
@@ -253,7 +255,7 @@ def sanitizeCharset(dn,entry,attr,self):
     return ret
 
 
-sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax, "localHome":sanitizeBooleanSyntax, "tivoliActive":sanitizeBooleanSyntax, "TLScheckPeer":sanitizeBooleanSyntax, "DSImanaged":sanitizeBooleanSyntax, "arInvalid":sanitizeBooleanSyntax, "TivoliActive":sanitizeBooleanSyntax, "rwRootFileSystem":sanitizeBooleanSyntax, "dtCheckForExternalUid":sanitizeBooleanSyntax, "ADCtrl":sanitizeBooleanSyntax }
+sanitizeCases = { "destinationIndicator":sanitizePrintableStringSyntax, "gecos":sanitizeCharset, "HPSAagent":sanitizeBooleanSyntax, "HPOAactive":sanitizeBooleanSyntax, "NSShostsUseLDAP":sanitizeBooleanSyntax, "NSSservicesUseLDAP":sanitizeBooleanSyntax, "followReferrals":sanitizeBooleanSyntax, "localHome":sanitizeBooleanSyntax, "dtkrb":sanitizeBooleanSyntax, "TLScheckPeer":sanitizeBooleanSyntax, "DSImanaged":sanitizeBooleanSyntax, "arInvalid":sanitizeBooleanSyntax, "TivoliActive":sanitizeBooleanSyntax, "rwRootFileSystem":sanitizeBooleanSyntax, "dtCheckForExternalUid":sanitizeBooleanSyntax, "ADCtrl":sanitizeBooleanSyntax }
 
 def sanitizeEntry(dn, entry, self):
     """
@@ -480,17 +482,18 @@ class StructuralLDIFParser(LDIFParser):
         """
         count = self.multipleStructurals
         structurals, nonstructurals = splitClasses(entry, self.ALL_STRUCTURALS)
-#        print("alle STRUCTURALS =",self.ALL_STRUCTURALS,"\nstructurals =",structurals,"\nnonstructurals =",nonstructurals)
         for (oCa,oCb) in STRUCTURAL_OBJECTCLASS_MAPPING.keys():
             a = oCa.casefold(); b = oCb.casefold();
-#            print("a =",a,"b =",b,"structurals =",structurals,"IN(a)=",a in structurals,"IN(b)=",b in structurals)
             if a in structurals and b in structurals:
-                self.multipleStructurals+=1
-                newStructural = structurals
+                newStructural = list(structurals)
+#                print("match [", a, ",", b, "], structurals = ", structurals,"; mappings =",STRUCTURAL_OBJECTCLASS_MAPPING[(oCa,oCb)])
                 newStructural.remove(a); newStructural.remove(b)
                 newStructural += STRUCTURAL_OBJECTCLASS_MAPPING[(oCa,oCb)]
-                entry["objectClass"] = nonstructurals + newStructural
-                self.logger.write("[NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping von {} auf {} durchgeführt\n".format(dn, structurals, newStructural))
+#                print("match [", a, ",", b, "], structurals = ", structurals,"; newStructural =",newStructural)
+                if newStructural != structurals:
+                    self.multipleStructurals+=1
+                    entry["objectClass"] = nonstructurals + newStructural
+                    self.logger.write("[NEWMAPPING] Bei dn={} wurde erfolgreich ein Mapping von {} auf {} durchgeführt\n".format(dn, structurals, newStructural))
         if count == self.multipleStructurals:
             self.unmapped+=1
             self.logger.write("[UNMAPPED] Bei dn={} wurde kein Mapping für {} gefunden\n".format(dn, structurals))
