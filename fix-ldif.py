@@ -22,7 +22,7 @@ DEFAULT_STRUCTURAL = "dummySTRUCTURAL"
 # bekannt serverübergreifend operationale Parameter
 OPERATIONAL_ATTRS  = ["aci","modifyTimestamp","modifiersName","creatorsName","createTimestamp","entryID","entryUID","entryUUID","memberOf","ldapSubEntry","ref"]
 # DSEE-spezifische operationale Parameter
-OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","passwordHistory","accountUnlockTime","passwordExpirationTime","pwdGraceUseTime","retryCountResetTime"]
+OPERATIONAL_ATTRS2  = ["passwordPolicySubentry","passwordRetryCount","pwdLastAuthTime","passwordExpWarning","passwordExpWarned","pwdChangedTime","pwdFailureTime","passwordAllowChangeTime","pwdHistory","passwordHistory","accountUnlockTime","passwordExpirationTime","pwdGraceUseTime","retryCountResetTime","passwordRootdnMayBypassModsChecks"]
 
 # anscheinend nicht mehr verwendete operational Attribute
 DELETE_ATTRS = ["ds6ruv","nsds50ruv", "nsds5ReplConflict","nscpEntryDN","nsParentUniqueId","nsAccountLock"]
@@ -42,6 +42,7 @@ OC_ATTR_DEPENDENCY = {
      ,"nstombstone" : [("DOES-NOT-EXIST", "dummyMember")]
      ,"ldapsubentry" : [("DOES-NOT-EXIST", "dummyMember")]
      ,"mailrecipient" : [("DOES-NOT-EXIST", "dummyMember")]
+     ,"sunPwdPolicy" : [("DOES-NOT-EXIST", "dummyMember")]
 #     ,"tsidevice" : [("sn", "dummyName")]
 }
 
