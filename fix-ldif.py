@@ -191,7 +191,8 @@ def sanitizeObjectClasses(dn, entry, dependencies, self):
     for attr in d.keys():
         if attr in entry:
             for a,v in d[attr]:
-                entry[a].append(v)
+                if not v in entry[a]:
+                    entry[a].append(v)
                 self.logger.write("[SANITIZE OC] Bei dn=\"{}\" wurde {}: {} ergänzt, weil es ein-Attribut {} gibt.\n".format(dn, a, v, attr))
 
     return entry
