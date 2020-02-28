@@ -39,9 +39,8 @@ DELETE_ATTRS3 = []
 # Achtung, key muss all-lowercase sein, Prozessierung benutzt Attributs*value*, der lowercase oder camelCase sein kann
 
 OC_ATTR_DEPENDENCY = {
-#     "groupOfUniqueNames" : [("uniqueMember", "dummyMember")],
-     "groupofuniquenames" : [("uniqueMember", "dummyMember")],
-     "tsidevice" : [("sn", "dummyName")]
+     "groupofuniquenames" : [("uniqueMember", "dummyMember")]
+#     ,"tsidevice" : [("sn", "dummyName")]
 }
 
 # dummyAUXILIARY muss alle Attribute als MAY enthalten, die nisNetgroup und person enthalten können
@@ -49,16 +48,16 @@ OC_ATTR_DEPENDENCY = {
 # person => MAY (sn $ cn )
 # nisNetgroup => MAY ( nisNetgroupTriple $ memberNisNetgroup $ description )
 STRUCTURAL_OBJECTCLASS_MAPPING = {
-    ("account","person") : ["TSIdevice", "dummyAUXILIARY"],
-    ("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"],
-    ("account","inetOrgPerson") : ["TSIdevice", "dummyAUXILIARY"],
-    ("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"],
-    ("applicationProcess","referral") : ["TSIdevice", "dummyAUXILIARY"],
-    ("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"],
-    ("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"],
-    ("device","person") : ["TSIdevice", "dummyAUXILIARY"],
-    ("device","organizationalPerson") : ["TSIdevice","dummyAUXILIARY"],
-    ("groupOfUniqueNames","organizationalUnit") : ["TSIdevice","dummyAUXILIARY"]
+    ("account","person") : ["TSIdevice", "dummyAUXILIARY"]
+    ,("account","organizationalPerson") : ["TSIdevice", "dummyAUXILIARY"]
+    ,("account","inetOrgPerson") : ["TSIdevice", "dummyAUXILIARY"]
+    ,("applicationEntity","person") : ["TSIdevice", "dummyAUXILIARY"]
+    ,("applicationProcess","referral") : ["dummySTRUCTURAL", "dummyAUXILIARY"]
+    ,("device","inetOrgPerson") : ["TSIdevice","dummyAUXILIARY"]
+    ,("device","nisNetgroup") : ["TSIdevice", "dummyAUXILIARY"]
+    ,("device","person") : ["TSIdevice", "dummyAUXILIARY"]
+    ,("device","organizationalPerson") : ["TSIdevice","dummyAUXILIARY"]
+    ,("groupOfUniqueNames","organizationalUnit") : ["TSIdevice","dummyAUXILIARY"]
 }
 
 
