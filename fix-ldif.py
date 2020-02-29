@@ -37,12 +37,13 @@ DELETE_ATTRS3 = []
 # - falls ALLE MUST-Attribute fehlen, lösche die oC und füge oC: dummyAUXILIARY hinzu (um deren MAY Attribute zuzulassen)
 # - ansonsten füge dieses Attribut mit dem 2. Wert des Tupels als Dummy-Value ein
 # Achtung, key muss all-lowercase sein, Prozessierung benutzt Attributs*value*, der lowercase oder camelCase sein kann
+# dummyAttribute existiert zwar als Attributsname aber nicht in Einträgen
 OC_ATTR_DEPENDENCY = {
-     "groupofuniquenames" : [("uniqueMember", "dummyMember")]
-     ,"nstombstone" : [("DOES-NOT-EXIST", "dummyMember")]
-     ,"ldapsubentry" : [("DOES-NOT-EXIST", "dummyMember")]
-     ,"mailrecipient" : [("DOES-NOT-EXIST", "dummyMember")]
-     ,"sunPwdPolicy" : [("DOES-NOT-EXIST", "dummyMember")]
+     "groupofuniquenames" : [("uniqueMember", "dummyValue1")]
+     ,"nstombstone" : [("dummyAttribute", "dummyValue2")]
+     ,"ldapsubentry" : [("dummyAttribute", "dummyValue3")]
+     ,"mailrecipient" : [("dummyAttribute","dummyValue4")]
+     ,"sunpwdpolicy" : [("dummyAttribute", "dummyValue5")]
 #     ,"tsidevice" : [("sn", "dummyName")]
 }
 
@@ -169,20 +170,22 @@ def sanitizeAttributes(dn, entry, dependencies, self):
     prüft ob zu bestimmten objectClasses gehörige (must-)Attribute vorhanden sind (Liste als "dependencies" übergeben)
     löscht ggfs. die oC (wenn die Liste zu ergänzender Attrs leer ist) und setzt sonst ein dummy-Attribut
     """
-    for oC in entry["objectClass"]:
+    ocs = list(entry["objectClass"])
+    changed = dict(entry)
+    for oC in ocs:
         o = oC.casefold()
         if o in dependencies: # Wir wollen für diese Objectclass oC alle dependencies überprüfen
             l = [d[0] not in entry for d in dependencies[o]]
             if all(l):
-                entry["objectClass"].remove(oC)
-                self.logger.write("[SANITIZE ATTR] Bei dn=\"{}\" wurde die oC {} gelöscht und oC: {} ergänzt, weil alle zugehörigen must-Attribute fehlen.\n".format(dn, oC, DEFAULT_STRUCTURAL))
-                break
-            for attribute, value in dependencies[o]: 
-                if attribute not in entry:
-                    entry[attribute] = [value] # fügt dem dict neuen Eintrag mit key = Attributs-Name und value = dummy hinzu
-                    self.logger.write("[SANITIZE ATTR] Bei dn=\"{}\" wurde dummy {}: {} ergänzt, weil es ein must-Attribut der objectClass {} ist, aber fehlte.\n".format(dn, attribute, value, oC))
+                changed["objectClass"].remove(oC)
+                self.logger.write("[SANITIZE ATTR] Bei dn=\"{}\" wurde die oC {} gelöscht, weil alle zugehörigen must-Attribute fehlen.\n".format(dn, oC))
+            else:
+                for attribute, value in dependencies[o]: 
+                    if attribute not in entry:
+                        changed[attribute] = [value] # fügt dem dict neuen Eintrag mit key = Attributs-Name und value = dummy hinzu
+                        self.logger.write("[SANITIZE ATTR] Bei dn=\"{}\" wurde dummy {}: {} ergänzt, weil es ein must-Attribut der objectClass {} ist, aber fehlte.\n".format(dn, attribute, value, oC))
 
-    return entry
+    return changed
 
 
 def sanitizeObjectClasses(dn, entry, dependencies, self):
