@@ -38,13 +38,16 @@ DELETE_ATTRS3 = []
 # - ansonsten füge dieses Attribut mit dem 2. Wert des Tupels als Dummy-Value ein
 # Achtung, key muss all-lowercase sein, Prozessierung benutzt Attributs*value*, der lowercase oder camelCase sein kann
 # dummyAttribute existiert zwar als Attributsname aber nicht in Einträgen
+# 
 OC_ATTR_DEPENDENCY = {
      "groupofuniquenames" : [("uniqueMember", "dummyValue1")]
      ,"nstombstone" : [("dummyAttribute", "dummyValue2")]
      ,"ldapsubentry" : [("dummyAttribute", "dummyValue3")]
      ,"mailrecipient" : [("dummyAttribute","dummyValue4")]
      ,"sunpwdpolicy" : [("dummyAttribute", "dummyValue5")]
-#     ,"tsidevice" : [("sn", "dummyName")]
+     # objectclass als must-Attribut, damit uniquemember hinzugefügt wird
+     # anstatt TSIdevice zu löschen
+     ,"tsidevice3" : [("uniqueMember", "dc=adm"),("objectClass","")]
 }
 
 
