@@ -40,7 +40,7 @@ DELETE_ATTRS3 = []
 # dummyAttribute existiert zwar als Attributsname aber nicht in Einträgen
 # 
 OC_ATTR_DEPENDENCY = {
-     "groupofuniquenames" : [("uniqueMember", "dummyValue1")]
+     "groupofuniquenames" : [("cn", "dummyValue1")]
      ,"nstombstone" : [("dummyAttribute", "dummyValue2")]
      ,"ldapsubentry" : [("dummyAttribute", "dummyValue3")]
      ,"mailrecipient" : [("dummyAttribute","dummyValue4")]
